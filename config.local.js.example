@@ -1,0 +1,6 @@
+// config.local.js.example — template for the local-only config file.
+//
+// Copy this file to `config.local.js` (same folder) and fill in your token.
+// `config.local.js` is gitignored and never committed -- that's the whole
+// point of keeping it separate from this template.
+window.KPR_MAPBOX_TOKEN = "";

@@ -1,0 +1,10 @@
+data/routes/*
+!data/routes/.gitkeep
+.DS_Store
+Thumbs.db
+
+# Local-only API keys/secrets. Never commit this -- see config.local.js.example.
+config.local.js
+
+# Staging folder the Pages deploy workflow builds (only exists in CI).
+_site/

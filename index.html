@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<!-- viewport-fit=cover lets the map fill behind the iOS notch/home indicator;
+     the UI uses env(safe-area-inset-*) to stay clear of them. -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#1d2129">
+<title>KPR Route Planner</title>
+
+<!-- PWA: installable, launches full-screen from the home screen. -->
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<!-- iOS doesn't read the manifest's display/icons; these meta tags give it
+     the full-screen standalone launch + home-screen icon instead. -->
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="KPR Routes">
+<meta name="mobile-web-app-capable" content="yes">
+
+<link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/v3.9.0/mapbox-gl.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Full-bleed map; every control floats on top of it. -->
+  <div id="map"></div>
+
+  <!-- Floating left panel (becomes a draggable bottom sheet on phones). -->
+  <aside id="panel" aria-label="Route planner">
+
+    <!-- Drag handle: only visible/used in the mobile bottom-sheet layout. -->
+    <button id="sheet-handle" aria-label="Expand or collapse panel"><span></span></button>
+
+    <header id="panel-header">
+      <div id="app-brand">
+        <span id="app-logo-mark" aria-hidden="true"></span>
+        <h1>KPR Route Planner</h1>
+      </div>
+      <input id="route-name" type="text" placeholder="Untitled route" value="Untitled route" aria-label="Route name">
+    </header>
+
+    <div id="panel-body">
+
+      <section class="block">
+        <div id="search-row">
+          <span class="search-icon" aria-hidden="true">&#9906;</span>
+          <input id="search-input" type="text" placeholder="Search places, businesses, addresses…" aria-label="Search">
+          <button id="search-btn" class="icon-btn" title="Search">Go</button>
+        </div>
+        <ul id="search-results" class="item-list hidden"></ul>
+      </section>
+
+      <section class="block">
+        <div id="mode-buttons" class="segmented" role="tablist">
+          <button id="mode-waypoint" class="mode-btn active" data-mode="waypoint" role="tab">&#65291; Waypoints</button>
+          <button id="mode-scene" class="mode-btn" data-mode="scene" role="tab">&#9703; Tag Scene</button>
+        </div>
+        <p class="hint" id="mode-hint">Click the map to add waypoints in order.</p>
+      </section>
+
+      <section class="block">
+        <div id="stats-card">
+          <div class="stat">
+            <div class="stat-value" id="stat-miles">–</div>
+            <div class="stat-label">Miles</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value" id="stat-minutes">–</div>
+            <div class="stat-label">Minutes</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value" id="stat-stops">0</div>
+            <div class="stat-label">Stops · fixed</div>
+          </div>
+          <button id="recalc-route" class="icon-btn stats-recalc" title="Recalculate route" aria-label="Recalculate route">&#8635;</button>
+        </div>
+      </section>
+
+      <section class="block">
+        <div class="section-head">
+          <h2>Itinerary <span class="count" id="waypoint-count">(0)</span></h2>
+          <button id="clear-waypoints" class="text-btn danger">Clear all</button>
+        </div>
+        <ol id="waypoint-list" class="timeline"></ol>
+        <p class="hint empty-hint" id="itinerary-empty">No stops yet. Click the map or add a search result.</p>
+      </section>
+
+      <section class="block">
+        <div class="section-head">
+          <h2>Eval Scenes <span class="count" id="scene-count">(0)</span></h2>
+        </div>
+        <ol id="scene-list" class="scene-cards"></ol>
+        <p class="hint empty-hint" id="scenes-empty">Switch to Tag Scene, then click two points on the route.</p>
+        <h2 class="legend-heading">Category colors</h2>
+        <ul id="scene-legend" class="legend-list"></ul>
+      </section>
+
+    </div>
+
+    <footer id="panel-footer">
+      <button id="start-drive" class="drive-btn">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 17-7-4-7 4z" fill="currentColor"/></svg>
+        Start drive
+      </button>
+      <button id="save-route" class="secondary-btn">&#8595; Save</button>
+      <button id="load-route" class="secondary-btn">&#8682; Load route</button>
+      <input id="load-route-input" type="file" accept="application/json" hidden>
+    </footer>
+  </aside>
+
+  <!-- Floating map style switcher (top right) -->
+  <div id="layer-toggle" class="float-card segmented">
+    <button id="layer-night" class="layer-btn active" data-style="night">Night</button>
+    <button id="layer-day" class="layer-btn" data-style="day">Day</button>
+    <button id="layer-satellite" class="layer-btn" data-style="satellite">Satellite</button>
+  </div>
+
+  <!-- ================================================================
+       Drive mode overlay (hidden until "Start drive"). Layout follows
+       Mapbox's in-car navigation: next-turn card top left, round controls
+       down the left, ETA card bottom left.
+       ================================================================ -->
+  <div id="drive-ui" class="hidden">
+
+    <div id="drive-maneuver" class="maneuver-card">
+      <div class="mv-main">
+        <span class="mv-icon" id="mv-icon" aria-hidden="true"></span>
+        <div class="mv-text">
+          <div class="mv-dist" id="mv-dist">–</div>
+          <div class="mv-street" id="mv-street"></div>
+        </div>
+      </div>
+      <div class="mv-then hidden" id="mv-then">
+        <span class="mv-then-label">Then</span>
+        <span class="mv-then-icon" id="mv-then-icon" aria-hidden="true"></span>
+        <span class="mv-then-street" id="mv-then-street"></span>
+      </div>
+    </div>
+
+    <div class="drive-btn-col">
+      <button id="drive-recenter" class="round-btn active" title="Follow my position" aria-label="Follow my position">
+        <svg viewBox="0 0 24 24"><path d="M12 3l7 17-7-4-7 4z" fill="currentColor"/></svg>
+      </button>
+      <button id="drive-voice" class="round-btn" title="Mute voice guidance" aria-label="Voice guidance">
+        <svg class="icon-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9z" fill="currentColor"/><path d="M16 9a4 4 0 0 1 0 6"/><path d="M18.5 6.5a8 8 0 0 1 0 11"/></svg>
+        <svg class="icon-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9z" fill="currentColor"/><path d="M17 9l5 6M22 9l-5 6"/></svg>
+      </button>
+      <button id="drive-overview" class="round-btn" title="Show whole route" aria-label="Show whole route">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l5-2 6 2 5-2v14l-5 2-6-2-5 2z"/><path d="M9 4v14M15 6v14"/></svg>
+      </button>
+    </div>
+
+    <div class="drive-zoom">
+      <button id="drive-zoom-in" class="round-btn" title="Zoom in" aria-label="Zoom in">+</button>
+      <button id="drive-zoom-out" class="round-btn" title="Zoom out" aria-label="Zoom out">&minus;</button>
+    </div>
+
+    <div class="drive-top-right">
+      <div id="drive-gps" class="drive-pill">Waiting for GPS…</div>
+      <div id="drive-speed" class="speed-bubble hidden"><span id="drive-speed-val">0</span><small>mph</small></div>
+    </div>
+
+    <div id="drive-scene" class="scene-alert hidden" role="status" aria-live="polite">
+      <div class="scene-alert-head">
+        <span id="scene-alert-kicker" class="scene-alert-kicker"></span>
+        <span id="scene-alert-dist" class="scene-alert-dist"></span>
+      </div>
+      <div id="scene-alert-label" class="scene-alert-label"></div>
+      <div id="scene-alert-notes" class="scene-alert-notes"></div>
+    </div>
+
+    <button id="drive-recenter-pill" class="recenter-pill hidden" title="Follow my position again">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 17-7-4-7 4z" fill="currentColor"/></svg>
+      Re-center
+    </button>
+
+    <div id="drive-offroute" class="drive-banner hidden" role="alert">
+      Off the planned route — head back to the blue line
+    </div>
+
+    <div id="drive-eta" class="eta-card">
+      <div class="eta-top">
+        <span class="eta-dest-wrap">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z" fill="currentColor"/></svg>
+          <span id="eta-dest">Destination</span>
+        </span>
+        <span id="eta-next-stop" class="eta-next-stop"></span>
+      </div>
+      <div class="eta-mid">
+        <div class="eta-sim">
+          <button id="drive-sim" class="round-btn" title="Simulate the drive" aria-label="Simulate the drive">&#9654;</button>
+          <button id="drive-sim-speed" class="sim-speed" title="Simulation speed">1×</button>
+        </div>
+        <div class="eta-center">
+          <div id="eta-time" class="eta-time">–</div>
+          <div id="eta-sub" class="eta-sub">– min · – mi</div>
+        </div>
+        <button id="drive-exit" class="round-btn danger" title="End drive" aria-label="End drive">&times;</button>
+      </div>
+      <div class="eta-track" aria-hidden="true">
+        <div id="eta-fill" class="eta-fill"></div>
+        <span id="eta-thumb" class="eta-thumb">
+          <svg viewBox="0 0 24 24"><path d="M5 4l15 8-15 8 4-8z" fill="currentColor"/></svg>
+        </span>
+      </div>
+    </div>
+
+    <div id="drive-arrived" class="arrived-card hidden" role="dialog" aria-label="Arrived">
+      <div class="arrived-flag">&#9873;</div>
+      <div class="arrived-title">You've arrived</div>
+      <div id="arrived-name" class="arrived-name"></div>
+      <div class="arrived-actions">
+        <button id="arrived-done" class="primary-btn">End drive</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Floating route status (bottom center). Same id the routing/scenes
+       modules already write to; only its presentation changed. -->
+  <div id="route-status" class="status-box" role="status" aria-live="polite">No route yet. Add at least 2 waypoints.</div>
+
+  <div id="scene-dialog" class="dialog hidden">
+    <div class="dialog-box">
+      <h3>Tag Evaluation Scene</h3>
+      <label>Type
+        <select id="scene-type">
+          <option value="NVH">NVH</option>
+          <option value="Handling">Handling</option>
+          <option value="Braking">Braking</option>
+          <option value="Ride Comfort">Ride Comfort</option>
+          <option value="Powertrain">Powertrain</option>
+          <option value="Visibility">Visibility</option>
+          <option value="Custom">Custom...</option>
+        </select>
+      </label>
+      <label id="scene-custom-type-wrap" class="hidden">Custom type
+        <input id="scene-custom-type" type="text" placeholder="e.g. Infotainment">
+      </label>
+      <label>Color for this type
+        <span class="color-row">
+          <input id="scene-color" type="color" value="#f59e0b">
+          <span id="scene-color-reset" class="link-btn">Reset to default</span>
+        </span>
+      </label>
+      <label>Label
+        <input id="scene-label" type="text" placeholder="e.g. Rough pavement section">
+      </label>
+      <label>Notes
+        <textarea id="scene-notes" rows="3" placeholder="What should the driver/evaluator pay attention to here?"></textarea>
+      </label>
+      <div class="button-row">
+        <button id="scene-cancel" class="secondary-btn">Cancel</button>
+        <button id="scene-confirm" class="primary-btn">Add Scene</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Local-only, gitignored config holding the Mapbox token as
+       window.KPR_MAPBOX_TOKEN. See config.local.js.example. Must load before
+       mapbox-gl.js below. -->
+  <script src="config.local.js"></script>
+
+  <!-- App modules: these only DEFINE the KPR.* namespaces, they don't touch
+       mapboxgl.* at load time, so they're safe to load before the GL JS
+       library. KPR.app.init() is deferred until mapbox-gl.js has loaded
+       (see the bootstrap script below). -->
+  <script src="js/map.js"></script>
+  <script src="js/waypoints.js"></script>
+  <script src="js/routing.js"></script>
+  <script src="js/scenes.js"></script>
+  <script src="js/search.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/drive.js"></script>
+  <script src="js/sheet.js"></script>
+  <script src="js/app.js"></script>
+
+  <!-- Load Mapbox GL JS, then boot the app once it's ready. If the token is
+       missing, show a clear message instead of letting mapboxgl fail with a
+       cryptic console-only error. -->
+  <script>
+    (function loadMapbox() {
+      const token = window.KPR_MAPBOX_TOKEN;
+      if (!token) {
+        document.getElementById("map").innerHTML =
+          '<div class="map-error">' +
+          "No Mapbox access token found. Add your token to <code>config.local.js</code> " +
+          "(see <code>config.local.js.example</code>) and reload.</div>";
+        return;
+      }
+      const s = document.createElement("script");
+      s.src = "https://api.mapbox.com/mapbox-gl-js/v3.9.0/mapbox-gl.js";
+      s.onload = function () {
+        KPR.app.init();
+        // Register the service worker after the app is up, so it never
+        // delays startup. Needs a secure context (https or localhost);
+        // it silently does nothing on a plain-http LAN address.
+        if ("serviceWorker" in navigator && window.isSecureContext) {
+          window.addEventListener("load", () => {
+            navigator.serviceWorker
+              .register("service-worker.js")
+              .catch((err) => console.info("Service worker not registered:", err && err.message));
+          });
+        }
+      };
+      s.onerror = function () {
+        document.getElementById("map").innerHTML =
+          '<div class="map-error">' +
+          "Failed to load Mapbox GL JS. Check your network connection and token.</div>";
+      };
+      document.head.appendChild(s);
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,72 @@
+# Publishes the KPR Route Planner to GitHub Pages on every push to main.
+#
+# The Mapbox token is NOT in the repo. It lives in the repository secret
+# MAPBOX_TOKEN and is written into config.local.js only inside the deployed
+# site. (It is still readable by anyone who opens the live page -- Mapbox
+# public tokens always are -- which is why DEPLOY.md has you URL-restrict it.)
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # lets you re-run it by hand from the Actions tab
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deploy at a time; a deploy already in progress is never cut off.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Stage the site
+        env:
+          MAPBOX_TOKEN: ${{ secrets.MAPBOX_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          # Only the files the app needs -- not samples/, data/, docs, etc.
+          mkdir _site
+          cp index.html manifest.webmanifest service-worker.js _site/
+          cp -r css js icons _site/
+
+          # Token -> config.local.js. Refuse anything that isn't a public
+          # pk.* token so a typo (or a secret sk.* token) never ships.
+          if [ -z "${MAPBOX_TOKEN:-}" ]; then
+            echo "::error::Repository secret MAPBOX_TOKEN is not set. See DEPLOY.md step 3."
+            exit 1
+          fi
+          if ! printf '%s' "$MAPBOX_TOKEN" | grep -Eq '^pk\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$'; then
+            echo "::error::MAPBOX_TOKEN must be a PUBLIC Mapbox token starting with pk. (never an sk. secret token)."
+            exit 1
+          fi
+          printf 'window.KPR_MAPBOX_TOKEN = "%s";\n' "$MAPBOX_TOKEN" > _site/config.local.js
+
+          # Stamp the service-worker cache with this commit so every deploy
+          # replaces phones'/iPads' cached copy of the app.
+          sed -i "s/\"kpr-dev\"/\"kpr-${GITHUB_SHA::8}\"/" _site/service-worker.js
+          grep -q "kpr-${GITHUB_SHA::8}" _site/service-worker.js || { echo "::error::cache-version stamp failed"; exit 1; }
+
+          ls -R _site
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

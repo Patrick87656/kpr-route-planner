@@ -1,0 +1,445 @@
+/**
+ * scenes.js — tag stretches of the drawn route as evaluation scenes
+ * (NVH, Handling, Braking, etc.).
+ *
+ * Flow in "Tag Scene" mode: user clicks a point near the route (start of the
+ * stretch), then clicks a second point (end of the stretch). We snap both
+ * clicks to the nearest point along the already-computed route polyline, so
+ * a scene is always defined as a sub-range of the real road-snapped route,
+ * not an arbitrary line.
+ *
+ * Mapbox GL port: route coordinates from routing.js are `{lat, lng}`
+ * objects. Scene segments are drawn as GL sources/layers (one per scene,
+ * mirroring Leaflet's one-polyline-per-scene model) instead of individual
+ * polyline objects, since Mapbox GL draws vector data via
+ * `addSource`/`addLayer` rather than per-feature draw calls. Pin markers
+ * reuse `mapboxgl.Marker` with the SAME HTML/CSS badge Leaflet used
+ * (Marker accepts an arbitrary DOM element). Notes popups use
+ * `mapboxgl.Popup` instead of Leaflet's `bindPopup`.
+ */
+window.KPR = window.KPR || {};
+
+KPR.scenes = (function () {
+  // Default colors per scene type/category. These are overridable by the
+  // user per-category via the color picker in the scene dialog (see
+  // `_applyTypeColor`/`setTypeColor`); `typeColors` below starts as a copy of
+  // this and is what's actually used to render scenes and the legend.
+  const DEFAULT_SCENE_COLORS = {
+    NVH: "#f59e0b",
+    Handling: "#8b5cf6",
+    Braking: "#ef4444",
+    "Ride Comfort": "#10b981",
+    Powertrain: "#0ea5e9",
+    Visibility: "#64748b",
+    Custom: "#c3002f",
+  };
+
+  // The live color for each category, keyed by `typeLabel` (so each custom
+  // type name gets its own remembered color too, not just the 6 presets).
+  // Loaded from localStorage on init so color choices persist between
+  // sessions; saved back on every change.
+  let typeColors = { ...DEFAULT_SCENE_COLORS };
+  const COLOR_STORAGE_KEY = "kpr.sceneTypeColors";
+
+  let currentRouteCoords = null; // [{lat, lng}, ...] from routing.js
+  let scenes = []; // { id, type, label, notes, startIdx, endIdx, sourceId, layerId, pinMarker, popup }
+  let nextId = 1;
+  let pendingStartIdx = null; // set after first click in scene mode
+  let onChangeCallback = null;
+
+  function init(onChange) {
+    onChangeCallback = onChange;
+    _loadTypeColors();
+    const map = KPR.map.getMap();
+
+    map.on("click", (e) => {
+      if (KPR.app.getMode() !== "scene") return;
+      _handleSceneClick({ lat: e.lngLat.lat, lng: e.lngLat.lng });
+    });
+
+    document.getElementById("scene-type").addEventListener("change", (e) => {
+      const wrap = document.getElementById("scene-custom-type-wrap");
+      wrap.classList.toggle("hidden", e.target.value !== "Custom");
+      _syncColorFieldToType();
+    });
+
+    document.getElementById("scene-custom-type").addEventListener("input", _syncColorFieldToType);
+
+    document.getElementById("scene-color-reset").addEventListener("click", () => {
+      const key = _currentDialogTypeKey();
+      const colorInput = document.getElementById("scene-color");
+      colorInput.value = DEFAULT_SCENE_COLORS[key] || DEFAULT_SCENE_COLORS.Custom;
+    });
+
+    document.getElementById("scene-cancel").addEventListener("click", _closeDialog);
+    document.getElementById("scene-confirm").addEventListener("click", _confirmScene);
+
+    // Style changes (street/satellite toggle) wipe custom GL sources/layers
+    // -- re-add every scene segment's source/layer after a style reload.
+    // Pin markers/popups are DOM overlays and survive on their own.
+    KPR.map.onStyleReload(() => {
+      scenes.forEach((s) => _addSceneLayer(s));
+    });
+  }
+
+  function _loadTypeColors() {
+    try {
+      const raw = localStorage.getItem(COLOR_STORAGE_KEY);
+      if (raw) {
+        const saved = JSON.parse(raw);
+        typeColors = { ...DEFAULT_SCENE_COLORS, ...saved };
+      }
+    } catch (err) {
+      console.warn("Could not load saved scene colors, using defaults.", err);
+    }
+  }
+
+  function _saveTypeColors() {
+    try {
+      localStorage.setItem(COLOR_STORAGE_KEY, JSON.stringify(typeColors));
+    } catch (err) {
+      console.warn("Could not persist scene colors.", err);
+    }
+  }
+
+  /** The key used to look up/store a color: the preset type, or the custom
+   * type's own name (so "Infotainment" gets its own remembered color
+   * distinct from the generic "Custom" default). */
+  function _currentDialogTypeKey() {
+    const typeSel = document.getElementById("scene-type");
+    if (typeSel.value !== "Custom") return typeSel.value;
+    const customName = document.getElementById("scene-custom-type").value.trim();
+    return customName || "Custom";
+  }
+
+  function _syncColorFieldToType() {
+    const key = _currentDialogTypeKey();
+    const colorInput = document.getElementById("scene-color");
+    colorInput.value = typeColors[key] || DEFAULT_SCENE_COLORS[key] || DEFAULT_SCENE_COLORS.Custom;
+  }
+
+  /** Set and persist the color for a scene category, and recolor any
+   * existing scenes of that category already on the map. */
+  function setTypeColor(key, color) {
+    typeColors[key] = color;
+    _saveTypeColors();
+    scenes
+      .filter((s) => s.typeLabel === key || (key === s.type && s.type !== "Custom"))
+      .forEach((s) => _recolorScene(s, color));
+    _notifyChange();
+  }
+
+  function _recolorScene(scene, color) {
+    scene.color = color;
+    const map = KPR.map.getMap();
+    if (map.getLayer(scene.layerId)) {
+      map.setPaintProperty(scene.layerId, "line-color", color);
+    }
+    const pin = scene.pinMarker.getElement().querySelector(".scene-pin-marker");
+    if (pin) pin.style.background = color;
+  }
+
+  function getTypeColors() {
+    return { ...typeColors };
+  }
+
+  function onRouteUpdated(routeCoords) {
+    currentRouteCoords = routeCoords;
+    pendingStartIdx = null;
+    // routing.js just wrote a fresh status; don't restore an older one later.
+    savedStatus = null;
+  }
+
+  function onRouteCleared() {
+    currentRouteCoords = null;
+    pendingStartIdx = null;
+    savedStatus = null;
+    clearAll();
+  }
+
+  function _handleSceneClick(latlng) {
+    if (!currentRouteCoords) {
+      alert("Calculate a route first (add at least 2 waypoints), then tag scenes along it.");
+      return;
+    }
+    const idx = _nearestRouteIndex(latlng);
+
+    if (pendingStartIdx === null) {
+      pendingStartIdx = idx;
+      // Temporarily use the route status banner as a prompt; the real route
+      // status is put back once the scene is added or cancelled.
+      const statusEl = document.getElementById("route-status");
+      savedStatus = { text: statusEl.textContent, className: statusEl.className };
+      statusEl.textContent = "Scene start marked. Click the end point along the route.";
+      statusEl.className = "status-box";
+      return;
+    }
+
+    const startIdx = Math.min(pendingStartIdx, idx);
+    const endIdx = Math.max(pendingStartIdx, idx);
+    pendingStartIdx = null;
+
+    if (startIdx === endIdx) {
+      _restoreStatus();
+      alert("Start and end points are the same — pick two distinct points along the route.");
+      return;
+    }
+
+    _openDialog(startIdx, endIdx);
+  }
+
+  function _nearestRouteIndex(latlng) {
+    let bestIdx = 0;
+    let bestDist = Infinity;
+    for (let i = 0; i < currentRouteCoords.length; i++) {
+      const { lat, lng } = currentRouteCoords[i];
+      const d = (lat - latlng.lat) ** 2 + (lng - latlng.lng) ** 2;
+      if (d < bestDist) {
+        bestDist = d;
+        bestIdx = i;
+      }
+    }
+    return bestIdx;
+  }
+
+  let dialogContext = null;
+
+  function _openDialog(startIdx, endIdx, prefill) {
+    dialogContext = { startIdx, endIdx };
+    const dialog = document.getElementById("scene-dialog");
+    const typeSel = document.getElementById("scene-type");
+    const customWrap = document.getElementById("scene-custom-type-wrap");
+    const customInput = document.getElementById("scene-custom-type");
+    const labelInput = document.getElementById("scene-label");
+    const notesInput = document.getElementById("scene-notes");
+
+    typeSel.value = (prefill && prefill.type in DEFAULT_SCENE_COLORS) ? prefill.type : "NVH";
+    customWrap.classList.toggle("hidden", typeSel.value !== "Custom");
+    customInput.value = prefill && prefill.type === "Custom" ? prefill.typeLabel || "" : "";
+    labelInput.value = prefill ? prefill.label || "" : "";
+    notesInput.value = prefill ? prefill.notes || "" : "";
+    _syncColorFieldToType();
+
+    dialog.classList.remove("hidden");
+    labelInput.focus();
+  }
+
+  function _closeDialog() {
+    dialogContext = null;
+    document.getElementById("scene-dialog").classList.add("hidden");
+    _restoreStatus();
+  }
+
+  // Route status that was showing before the "Scene start marked" prompt.
+  let savedStatus = null;
+
+  function _restoreStatus() {
+    if (!savedStatus) return;
+    const statusEl = document.getElementById("route-status");
+    statusEl.textContent = savedStatus.text;
+    statusEl.className = savedStatus.className;
+    savedStatus = null;
+  }
+
+  function _confirmScene() {
+    if (!dialogContext) return;
+    const typeSel = document.getElementById("scene-type");
+    const customInput = document.getElementById("scene-custom-type");
+    const labelInput = document.getElementById("scene-label");
+    const notesInput = document.getElementById("scene-notes");
+    const colorInput = document.getElementById("scene-color");
+
+    const type = typeSel.value;
+    const typeLabel = type === "Custom" ? (customInput.value.trim() || "Custom") : type;
+    const label = labelInput.value.trim() || typeLabel;
+    const notes = notesInput.value.trim();
+    const colorKey = type === "Custom" ? typeLabel : type;
+
+    // Picking a color here sets it for the whole category going forward
+    // (persisted), not just this one scene — that's the point of a
+    // per-category color picker rather than a per-scene one.
+    setTypeColor(colorKey, colorInput.value);
+
+    addScene(dialogContext.startIdx, dialogContext.endIdx, type, typeLabel, label, notes);
+    _closeDialog();
+  }
+
+  function _addSceneLayer(scene) {
+    const map = KPR.map.getMap();
+    const geojson = {
+      type: "Feature",
+      geometry: {
+        type: "LineString",
+        coordinates: scene.segment.map((c) => [c.lng, c.lat]),
+      },
+    };
+
+    if (map.getSource(scene.sourceId)) {
+      map.getSource(scene.sourceId).setData(geojson);
+      return;
+    }
+    // Mid style switch: Mapbox refuses new layers until the new style has
+    // loaded. The scene is already in `scenes`, so the onStyleReload callback
+    // in init() adds its layer as soon as the style is ready.
+    if (!KPR.map.isStyleReady()) return;
+    map.addSource(scene.sourceId, { type: "geojson", data: geojson });
+    map.addLayer({
+      id: scene.layerId,
+      type: "line",
+      source: scene.sourceId,
+      layout: { "line-join": "round", "line-cap": "round" },
+      // emissive-strength 1: full brightness under Standard night lighting.
+      paint: { "line-color": scene.color, "line-width": 8, "line-opacity": 0.9, "line-emissive-strength": 1 },
+    });
+    // Layer-scoped listeners stay registered on the map across style
+    // switches, but this function runs again after every switch to re-add
+    // the layer. Bind them only once per scene so clicks don't stack up.
+    if (scene.listenersBound) return;
+    scene.listenersBound = true;
+    map.on("click", scene.layerId, (e) => {
+      scene.popup.setLngLat(e.lngLat).addTo(map);
+    });
+    map.on("mouseenter", scene.layerId, () => {
+      map.getCanvas().style.cursor = "pointer";
+    });
+    map.on("mouseleave", scene.layerId, () => {
+      // Back to the mode's cursor (crosshair while tagging scenes).
+      map.getCanvas().style.cursor = KPR.app.getMode() === "scene" ? "crosshair" : "";
+    });
+  }
+
+  function addScene(startIdx, endIdx, type, typeLabel, label, notes) {
+    const id = nextId++;
+    const colorKey = type === "Custom" ? typeLabel : type;
+    const color = typeColors[colorKey] || DEFAULT_SCENE_COLORS[type] || DEFAULT_SCENE_COLORS.Custom;
+    const segment = currentRouteCoords.slice(startIdx, endIdx + 1);
+
+    const map = KPR.map.getMap();
+    const popupHtml = _buildPopupHtml(typeLabel, label, notes);
+    const popup = new mapboxgl.Popup({ offset: 12, closeButton: true }).setHTML(popupHtml);
+
+    const sourceId = `kpr-scene-src-${id}`;
+    const layerId = `kpr-scene-layer-${id}`;
+    const scene = {
+      id,
+      type,
+      typeLabel,
+      label,
+      notes,
+      startIdx,
+      endIdx,
+      color,
+      segment,
+      sourceId,
+      layerId,
+      popup,
+    };
+
+    // The notes a user types when tagging a scene need somewhere visible on
+    // the map, not just a browser hover tooltip in the sidebar (see
+    // scene-list rendering in app.js). Both the colored route segment and
+    // its label pin open the SAME popup.
+    _addSceneLayer(scene);
+
+    const midpoint = segment[Math.floor(segment.length / 2)];
+    const pinEl = document.createElement("div");
+    pinEl.className = "scene-pin-marker-wrap";
+    pinEl.innerHTML = `<div class="scene-pin-marker" style="background:${color}">${_escapeHtml(label)}</div>`;
+    // Anchored at its bottom edge and nudged up, so the label sits just above
+    // the colored segment instead of covering the road (or a stop) under it.
+    const pinMarker = new mapboxgl.Marker({ element: pinEl, anchor: "bottom", offset: [0, -6] })
+      .setLngLat([midpoint.lng, midpoint.lat])
+      .addTo(map);
+    pinEl.addEventListener("click", () => {
+      popup.setLngLat([midpoint.lng, midpoint.lat]).addTo(map);
+    });
+
+    scene.pinMarker = pinMarker;
+    scenes.push(scene);
+    _notifyChange();
+    return scene;
+  }
+
+  function _buildPopupHtml(typeLabel, label, notes) {
+    const notesHtml = notes
+      ? `<p class="scene-popup-notes">${_escapeHtml(notes)}</p>`
+      : `<p class="scene-popup-notes scene-popup-notes-empty">No notes added.</p>`;
+    return (
+      `<div class="scene-popup">` +
+      `<div class="scene-popup-type">${_escapeHtml(typeLabel)}</div>` +
+      `<div class="scene-popup-label">${_escapeHtml(label)}</div>` +
+      notesHtml +
+      `</div>`
+    );
+  }
+
+  function _escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  function _removeSceneLayer(scene) {
+    const map = KPR.map.getMap();
+    if (map.getLayer(scene.layerId)) map.removeLayer(scene.layerId);
+    if (map.getSource(scene.sourceId)) map.removeSource(scene.sourceId);
+  }
+
+  function removeScene(id) {
+    const idx = scenes.findIndex((s) => s.id === id);
+    if (idx === -1) return;
+    _removeSceneLayer(scenes[idx]);
+    scenes[idx].pinMarker.remove();
+    scenes[idx].popup.remove();
+    scenes.splice(idx, 1);
+    _notifyChange();
+  }
+
+  function clearAll() {
+    scenes.forEach((s) => {
+      _removeSceneLayer(s);
+      s.pinMarker.remove();
+      s.popup.remove();
+    });
+    scenes = [];
+    _notifyChange();
+  }
+
+  function getAll() {
+    return scenes;
+  }
+
+  function count() {
+    return scenes.length;
+  }
+
+  function _notifyChange() {
+    if (onChangeCallback) onChangeCallback(scenes);
+  }
+
+  /** Rebuild scenes from saved data once the route has been recalculated. */
+  function loadFrom(savedScenes) {
+    clearAll();
+    if (!currentRouteCoords) return;
+    savedScenes.forEach((s) => {
+      const startIdx = Math.min(s.startIdx, currentRouteCoords.length - 1);
+      const endIdx = Math.min(s.endIdx, currentRouteCoords.length - 1);
+      addScene(startIdx, endIdx, s.type, s.typeLabel, s.label, s.notes);
+    });
+  }
+
+  return {
+    init,
+    onRouteUpdated,
+    onRouteCleared,
+    addScene,
+    removeScene,
+    clearAll,
+    getAll,
+    count,
+    loadFrom,
+    setTypeColor,
+    getTypeColors,
+    DEFAULT_SCENE_COLORS,
+  };
+})();
