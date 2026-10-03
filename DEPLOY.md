@@ -108,4 +108,4 @@ because the cached copy loads first and then refreshes in the background.
 | Map is blank or shows a token error | Check that the token's URL restriction is exactly `https://YOUR-USERNAME.github.io` (no path, no trailing slash) |
 | Workflow fails: "MAPBOX_TOKEN is not set" | Redo step 3. The secret name must match exactly |
 | Site URL is a 404 | Set step 4 to **GitHub Actions**, then re-run the workflow (Actions tab → **Run workflow**) |
-| "Location blocked" in Drive mode | Allow location for Safari / Chrome in the device settings (see above) |
+| "Location blocked" in Drive mode, or the locate button is greyed out | Allow location for Safari / Chrome in the device settings (see above). Some work PCs block browser location by policy, and only IT can change that. The simulated drive (▶) still works without GPS |

@@ -25,6 +25,8 @@ window.KPR = window.KPR || {};
 KPR.map = (function () {
   const DEFAULT_CENTER = [-115.1398, 36.1699]; // Mapbox/GeoJSON order is [lng, lat] — Las Vegas area, arbitrary default
   const DEFAULT_ZOOM = 11;
+  const LAST_POS_ZOOM = 13;
+  const LAST_POS_KEY = "kprLastPosition"; // {lat, lng, ts}; last known GPS fix, so a reload opens near the user instead of Las Vegas
 
   const STANDARD_URL = "mapbox://styles/mapbox/standard";
   const STYLES = {
@@ -35,6 +37,12 @@ KPR.map = (function () {
   const DEFAULT_STYLE = "night";
 
   let map = null;
+  let geolocateControl = null;
+  // Tracks whether the planner's locate button is actively following
+  // (ACTIVE_LOCK/BACKGROUND in Mapbox's terms), so stopLocate() only has to
+  // act when there's actually something to stop. Driven entirely by the
+  // control's own events below -- Mapbox exposes no public "is it on" getter.
+  let locateActive = false;
   let currentStyleKey = DEFAULT_STYLE;
   // Mapbox GL's `setStyle()` tears down and rebuilds the whole style,
   // including any custom `addSource`/`addLayer` calls (routing.js's route
@@ -52,15 +60,22 @@ KPR.map = (function () {
   function init() {
     mapboxgl.accessToken = window.KPR_MAPBOX_TOKEN;
 
+    // Open near wherever the user last was (saved from a real GPS fix, see
+    // _addLocateControl below) instead of always starting in Las Vegas.
+    // The Las Vegas default only shows up on a device/browser that has
+    // never shared its location here before.
+    const last = _getLastPosition();
+
     map = new mapboxgl.Map({
       container: "map",
       style: STYLES[DEFAULT_STYLE].url,
       config: { basemap: { lightPreset: STYLES[DEFAULT_STYLE].lightPreset } },
-      center: DEFAULT_CENTER,
-      zoom: DEFAULT_ZOOM,
+      center: last ? [last.lng, last.lat] : DEFAULT_CENTER,
+      zoom: last ? LAST_POS_ZOOM : DEFAULT_ZOOM,
     });
 
     map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), "bottom-right");
+    _addLocateControl();
 
     applyPanelPadding();
     window.addEventListener("resize", applyPanelPadding);
@@ -74,6 +89,129 @@ KPR.map = (function () {
     _wireStyleSwitcher();
 
     return map;
+  }
+
+  /**
+   * "Locate me" button + blue you-are-here dot for planning (like Google
+   * Maps). Mapbox's GeolocateControl does both, and its button cycles the
+   * same way Google's does:
+   *   tap        -> find me, center on me and keep following
+   *   pan by hand -> dot keeps updating, camera stays where you put it
+   *   tap again  -> re-center and follow;  tap while following -> off
+   * Drive mode draws its own arrow, so CSS hides this dot while driving.
+   * Needs https (or localhost); on a plain-http page Mapbox hides the button.
+   */
+  function _addLocateControl() {
+    // The control re-reads fitBoundsOptions on every camera move, and
+    // fitBounds REPLACES the map's padding (see getFitPadding). A getter
+    // keeps the padding current as the phone sheet is dragged or rotated, so
+    // the dot centers in the part of the map you can actually see instead of
+    // landing behind the sheet / side panel.
+    const fitBoundsOptions = { maxZoom: 15 };
+    Object.defineProperty(fitBoundsOptions, "padding", {
+      enumerable: true,
+      get: () => {
+        const sheet = _sheetTargetHeight();
+        return sheet
+          ? { top: 0, left: 0, right: 0, bottom: sheet }
+          : { top: 0, left: _panelInset(), right: 0, bottom: 0 };
+      },
+    });
+    const geolocate = new mapboxgl.GeolocateControl({
+      positionOptions: { enableHighAccuracy: true },
+      trackUserLocation: true,
+      showUserHeading: true,
+      showAccuracyCircle: true,
+      fitBoundsOptions,
+    });
+    // Added after the zoom buttons, so it stacks ABOVE them (Mapbox puts
+    // later bottom-corner controls on top), where Google puts it.
+    map.addControl(geolocate, "bottom-right");
+    geolocateControl = geolocate;
+
+    // A fully open sheet covers ~90% of a phone screen, so the dot would
+    // land behind it. Like Google Maps, tapping locate brings a fully open
+    // sheet down to half height so you can see where you are.
+    // Mapbox builds its button asynchronously (after a geolocation-support
+    // check), so it doesn't exist yet here. Listen on the document instead.
+    document.addEventListener("click", (e) => {
+      if (e.target.closest && e.target.closest(".mapboxgl-ctrl-geolocate")) KPR.sheet.lowerForMap();
+    });
+
+    // Remember every real fix so the NEXT load can open near the user
+    // immediately (see _getLastPosition/init above) instead of waiting on
+    // this control to kick in, or falling back to Las Vegas.
+    geolocate.on("geolocate", (pos) => {
+      _saveLastPosition(pos.coords.latitude, pos.coords.longitude);
+    });
+    // Mapbox exposes no getter for "is this control currently tracking", so
+    // track it ourselves from its own state-change events (see stopLocate).
+    geolocate.on("trackuserlocationstart", () => { locateActive = true; });
+    geolocate.on("trackuserlocationend", () => { locateActive = false; });
+
+    // If location was already allowed on an earlier visit, show the dot
+    // straight away instead of leaving it to a tap. Never ask for
+    // permission unprompted -- that waits for a tap on the button.
+    if (navigator.permissions && navigator.permissions.query && window.isSecureContext) {
+      navigator.permissions
+        .query({ name: "geolocation" })
+        .then((status) => {
+          if (status.state === "denied") {
+            // Mapbox greys the button out when the browser already blocks
+            // location, but says nothing about why. Explain it.
+            _whenLocateButton((btn) => {
+              btn.title = "Location is blocked. Allow it in your browser or device settings, then reload.";
+            });
+            return;
+          }
+          if (status.state !== "granted") return;
+          // Don't yank the camera if a saved route was already loaded --
+          // the map already opened centered on the user via init()'s
+          // last-known-position fallback, so there's nothing to fly to.
+          const startLocating = () => {
+            if (!KPR.routing.getRouteCoords()) geolocate.trigger();
+          };
+          if (map.loaded()) startLocating();
+          else map.once("load", startLocating);
+        })
+        .catch(() => {});
+    }
+  }
+
+  /** Run cb(button) once Mapbox has created the locate button (it does so
+   * asynchronously). Gives up after ~10s. */
+  function _whenLocateButton(cb) {
+    let tries = 0;
+    const timer = setInterval(() => {
+      const btn = document.querySelector(".mapboxgl-ctrl-geolocate");
+      if (btn) {
+        clearInterval(timer);
+        cb(btn);
+      } else if (++tries > 50) {
+        clearInterval(timer);
+      }
+    }, 200);
+  }
+
+  function _getLastPosition() {
+    try {
+      const raw = localStorage.getItem(LAST_POS_KEY);
+      if (!raw) return null;
+      const p = JSON.parse(raw);
+      if (typeof p.lat === "number" && typeof p.lng === "number") return p;
+    } catch (err) {
+      // Corrupt or inaccessible storage (private browsing) -- fall back
+      // to the Las Vegas default, same as a first-ever visit.
+    }
+    return null;
+  }
+
+  function _saveLastPosition(lat, lng) {
+    try {
+      localStorage.setItem(LAST_POS_KEY, JSON.stringify({ lat, lng, ts: Date.now() }));
+    } catch (err) {
+      // Storage full or disabled; next load just falls back to Las Vegas.
+    }
   }
 
   function _applyLightPreset() {
@@ -120,6 +258,16 @@ KPR.map = (function () {
     const isSheet = r.left < 4 && r.right > window.innerWidth - 4 && r.top > 0;
     if (!isSheet) return 0;
     return Math.max(0, Math.min(window.innerHeight - r.top, window.innerHeight - 220));
+  }
+
+  /** Height the phone sheet is heading TO (its --sheet-h), in px; 0 when the
+   * sheet layout isn't active. Unlike _sheetInset this ignores the sheet's
+   * 0.25s height animation, so a camera move started right after the sheet
+   * changes still centers in the final visible area. */
+  function _sheetTargetHeight() {
+    if (!_sheetInset()) return 0;
+    const h = parseFloat(document.documentElement.style.getPropertyValue("--sheet-h"));
+    return Number.isFinite(h) ? h : _sheetInset();
   }
 
   /**
@@ -182,6 +330,14 @@ KPR.map = (function () {
     return styleReady;
   }
 
+  /** Turn off the planner's locate-me tracking. Drive mode calls this on
+   * start: it draws its own puck/camera, and leaving the planner's
+   * GeolocateControl running at the same time would mean two different
+   * code paths fighting over the same GPS watch and the map camera. */
+  function stopLocate() {
+    if (geolocateControl && locateActive) geolocateControl.trigger();
+  }
+
   return {
     init,
     getMap,
@@ -191,5 +347,6 @@ KPR.map = (function () {
     applyPanelPadding,
     setStyleKey,
     getStyleKey,
+    stopLocate,
   };
 })();

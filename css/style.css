@@ -792,6 +792,36 @@ button:focus-visible { outline: 2px solid #60a5fa; outline-offset: 2px; }
 .mapboxgl-ctrl-group button:hover { background: var(--surface-3) !important; }
 .mapboxgl-ctrl-group .mapboxgl-ctrl-icon { filter: invert(1) brightness(0.9); }
 
+/* "Locate me" button (Mapbox's GeolocateControl), stacked just above the
+   zoom buttons -- same spot and cycle as Google Maps' button: tap to find
+   and follow, tap again to stop. Its own group/button rules above already
+   give it the dark card look; this overrides Mapbox's blue "active" tint
+   with our nav blue, and recolors the icon since it isn't an <img> the
+   invert() filter above only touches the OTHER control's icon by accident
+   (both groups share .mapboxgl-ctrl-icon, so be explicit per-state). */
+.mapboxgl-ctrl-group button.mapboxgl-ctrl-geolocate { position: relative; }
+.mapboxgl-ctrl-geolocate .mapboxgl-ctrl-icon { filter: invert(1) brightness(0.9); }
+.mapboxgl-ctrl-geolocate.mapboxgl-ctrl-geolocate-active .mapboxgl-ctrl-icon,
+.mapboxgl-ctrl-geolocate.mapboxgl-ctrl-geolocate-background .mapboxgl-ctrl-icon {
+  /* Mapbox's SVG is colored via `fill` baked into the data URI, so a CSS
+     filter is the only way to retint it without replacing the icon. This
+     turns its light-blue "active" fill into our nav blue. */
+  filter: invert(1) brightness(0.9) sepia(1) saturate(6) hue-rotate(190deg);
+}
+.mapboxgl-ctrl-geolocate.mapboxgl-ctrl-geolocate-active-error .mapboxgl-ctrl-icon,
+.mapboxgl-ctrl-geolocate.mapboxgl-ctrl-geolocate-background-error .mapboxgl-ctrl-icon {
+  filter: invert(1) brightness(0.9) sepia(1) saturate(6) hue-rotate(-30deg); /* red: permission denied */
+}
+
+/* The you-are-here dot + accuracy circle Mapbox draws on the map itself
+   (not inside the button). Retint the default light blue to match the app,
+   and hide it in Drive mode -- drive.js draws its own arrow puck there. */
+.mapboxgl-user-location-dot,
+.mapboxgl-user-location-dot::before { background-color: var(--nav-blue); }
+.mapboxgl-user-location-accuracy-circle { background-color: rgba(59, 127, 245, 0.15); }
+body.driving .mapboxgl-user-location,
+body.driving .mapboxgl-user-location-accuracy-circle { display: none !important; }
+
 /* The floating panel covers the map's bottom-left corner, where Mapbox puts
    its logo. Mapbox's terms require the logo to stay visible, so shift that
    corner's controls to the right of the panel. */
@@ -876,7 +906,17 @@ button:focus-visible { outline: 2px solid #60a5fa; outline-offset: 2px; }
     top: calc(var(--gap) + var(--safe-top));
     right: calc(var(--gap) + var(--safe-right));
   }
-  .mapboxgl-ctrl-bottom-right { bottom: calc(var(--sheet-peek) + 8px) !important; }
+  /* Sit just above the sheet at whatever height it's currently at (sheet.js
+     keeps --sheet-h up to date as the user drags it), with the same easing
+     the sheet itself uses so the buttons glide with it instead of jumping. */
+  .mapboxgl-ctrl-bottom-right {
+    bottom: calc(var(--sheet-h, var(--sheet-peek)) + 10px) !important;
+    transition: bottom 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  /* sheet.js sets this on <html> (not #panel) while dragging, since the map
+     controls are siblings of #panel, not descendants, and custom
+     properties don't cross between siblings. */
+  html.sheet-dragging .mapboxgl-ctrl-bottom-right { transition: none; }
   .mapboxgl-ctrl-bottom-left,
   body.driving .mapboxgl-ctrl-bottom-left { left: 8px; }
 
