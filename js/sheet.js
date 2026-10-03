@@ -57,16 +57,28 @@ KPR.sheet = (function () {
     return window.innerHeight;
   }
 
+  function _setSheetH(px) {
+    // Set on <html>, not just #panel: the map's locate/zoom buttons are
+    // Mapbox-rendered siblings of #panel, not descendants, and a custom
+    // property set on one element isn't visible to its siblings -- only to
+    // its own descendants. The root is the nearest common ancestor.
+    document.documentElement.style.setProperty("--sheet-h", `${px}px`);
+  }
+
   function _apply(snap, animate) {
     current = snap;
     // Pixels of the *visible* viewport, not vh: on iOS Safari vh ignores the
     // toolbar, so a "90vh" sheet would hide its bottom under it.
-    panel.style.setProperty("--sheet-h", `${Math.round(SNAPS[snap] * _vh())}px`);
+    _setSheetH(Math.round(SNAPS[snap] * _vh()));
     panel.classList.toggle("dragging", !animate);
+    document.documentElement.classList.toggle("sheet-dragging", !animate);
     if (!animate) {
       // force the no-transition height to stick, then allow transitions again
       // for the next programmatic change
-      requestAnimationFrame(() => panel.classList.remove("dragging"));
+      requestAnimationFrame(() => {
+        panel.classList.remove("dragging");
+        document.documentElement.classList.remove("sheet-dragging");
+      });
     }
   }
 
@@ -77,6 +89,7 @@ KPR.sheet = (function () {
     startY = e.clientY;
     startH = panel.getBoundingClientRect().height;
     panel.classList.add("dragging");
+    document.documentElement.classList.add("sheet-dragging");
     handle.setPointerCapture(e.pointerId);
     handle.addEventListener("pointermove", _onMove);
     handle.addEventListener("pointerup", _onUp);
@@ -91,7 +104,7 @@ KPR.sheet = (function () {
     const dy = startY - e.clientY; // up = taller
     movedPx = Math.max(movedPx, Math.abs(dy));
     const h = Math.max(_vh() * 0.1, Math.min(_vh() * 0.92, startH + dy));
-    panel.style.setProperty("--sheet-h", `${h}px`);
+    _setSheetH(h);
   }
 
   function _onUp(e) {
@@ -130,5 +143,11 @@ KPR.sheet = (function () {
     if (_isSheet() && current === "peek") _apply("half", true);
   }
 
-  return { init, expand };
+  /** If the sheet is fully open, bring it down to half so the map shows.
+   * Used when the user taps "locate me". No-op on wider screens. */
+  function lowerForMap() {
+    if (_isSheet() && current === "full") _apply("half", true);
+  }
+
+  return { init, expand, lowerForMap };
 })();

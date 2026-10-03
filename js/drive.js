@@ -318,6 +318,10 @@ KPR.drive = (function () {
     prevMode = KPR.app.getMode();
     KPR.app.setMode("drive");
     KPR.waypoints.setLocked(true);
+    // The planner's own "locate me" (if the user had it tracking) and this
+    // mode both want the only GPS watch and the only say over the camera;
+    // hand it off cleanly instead of running both at once.
+    KPR.map.stopLocate();
     document.body.classList.add("driving");
     document.getElementById("drive-ui").classList.remove("hidden");
     document.getElementById("drive-arrived").classList.add("hidden");
@@ -403,7 +407,7 @@ KPR.drive = (function () {
           _setGps(
             ios
               ? "Location blocked · Settings › Privacy › Location Services › Safari Websites"
-              : "Location blocked · allow it in the browser's site settings",
+              : "Location blocked · allow it in the browser's site settings · ▶ to simulate",
             "warn"
           );
         } else if (err.code === err.TIMEOUT) {
