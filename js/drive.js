@@ -878,6 +878,18 @@ KPR.drive = (function () {
 
     document.getElementById("drive-recenter-pill").addEventListener("click", () => setFollow(true));
 
+    // On phones the scene alert docks under the turn card (see the phone
+    // rules in style.css). That card changes height, so publish its bottom
+    // edge as --mv-bottom whenever it resizes.
+    const mvCard = document.getElementById("drive-maneuver");
+    const driveUi = document.getElementById("drive-ui");
+    const publishMvBottom = () => {
+      const r = mvCard.getBoundingClientRect();
+      if (r.height > 0) driveUi.style.setProperty("--mv-bottom", `${Math.round(r.bottom)}px`);
+    };
+    if ("ResizeObserver" in window) new ResizeObserver(publishMvBottom).observe(mvCard);
+    window.addEventListener("resize", publishMvBottom);
+
     // Panning/rotating/tilting the map by hand pauses follow mode (so you
     // can look around); it resumes automatically after AUTO_RECENTER_MS of
     // no handling, or right away via Re-center. `originalEvent` is only set

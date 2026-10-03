@@ -1319,12 +1319,33 @@ body.driving .mapboxgl-ctrl-bottom-left { left: 420px; }
     width: auto;
   }
   .drive-zoom { left: calc(12px + var(--safe-left)); bottom: calc(216px + var(--safe-bottom)); }
+  /* Scene alert: docked UNDER the turn card, lined up with it. It used to
+     sit just above the ETA card, but the follow camera parks the vehicle
+     arrow about 70% of the way down the screen, right where that card was,
+     so the alert hid the arrow (and the speed bubble and zoom buttons).
+     --mv-bottom is the turn card's measured bottom edge (set in drive.js),
+     since that card grows when the "Then ..." row appears. */
   .scene-alert {
-    top: auto;
-    bottom: calc(216px + var(--safe-bottom));
-    left: calc(12px + var(--safe-left));
-    right: calc(12px + var(--safe-right));
-    width: auto;
+    top: calc(var(--mv-bottom, 132px) + 10px);
+    bottom: auto;
+    left: calc(72px + var(--safe-left));
+    right: auto;
+    /* Same width rule as the turn card above it (380px, capped to the
+       screen), so the two edges line up at every phone width. */
+    width: 380px;
+    max-width: calc(100vw - 108px);
+    padding: 10px 14px 10px 16px;
+  }
+  .scene-alert-label { margin-top: 2px; font-size: 16px; }
+  /* A long note must not grow down toward the arrow; the full text stays
+     in the scene's popup in the planner. */
+  .scene-alert-notes {
+    margin-top: 4px;
+    font-size: 13px;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
   .recenter-pill { bottom: calc(206px + var(--safe-bottom)); }
   body.driving .mapboxgl-ctrl-bottom-left { left: auto; right: 12px; bottom: calc(192px + var(--safe-bottom)); }
