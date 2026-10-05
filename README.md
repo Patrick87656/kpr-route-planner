@@ -95,6 +95,6 @@ No install needed. From this folder:
 powershell -NoProfile -File tests\run-tests.ps1
 ```
 
-It opens 	ests/run.html in headless Edge (or Chrome) and prints
+It opens tests/run.html in headless Edge (or Chrome) and prints
 RESULT: PASS or RESULT: FAIL. The tests don't use Mapbox or the network.
-You can also open 	ests/run.html in a browser to see the report.
+You can also open tests/run.html in a browser to see the report.
