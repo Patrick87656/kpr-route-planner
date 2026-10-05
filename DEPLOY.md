@@ -95,6 +95,27 @@ access. Choose **Allow While Using App**.
 - GPS stops whenever the screen is off or another app is in front. That's
   a browser rule for all web apps.
 
+## Sharing a route
+
+The **Share** button makes a link and a QR code for the current route.
+Opening the link loads that route in the app. People on the hosted page need
+nothing installed. **Save** and **Load** (the JSON file) still work the same
+and remain the way to put routes onto the in-car iPads.
+
+Privacy, in plain terms:
+
+- **The route lives inside the link, not on any server.** It is stored in the
+  part of the address after the `#`. Browsers never send that part over the
+  network, so GitHub Pages never receives the route.
+- **Anyone who has the link can read the stops and scene notes**, and can
+  forward the link to someone else. Treat it like the route file itself.
+- **The QR code is drawn on the device.** Nothing is sent to a QR service
+  and the app loads no outside script for it.
+- **Links over about 2000 characters may be cut off by some chat apps.** If a
+  recipient reports a broken link, use **Save** and send the file instead.
+- On iPhone and iPad, a link opens in Safari, not in the installed
+  home-screen app.
+
 ## Updating
 
 Merge to `main` and the workflow redeploys. Devices pick up the new

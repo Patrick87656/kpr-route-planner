@@ -168,8 +168,10 @@ KPR.map = (function () {
           // Don't yank the camera if a saved route was already loaded --
           // the map already opened centered on the user via init()'s
           // last-known-position fallback, so there's nothing to fly to.
+          // Same for an incoming shared route (#r=... link): it is about to
+          // be loaded and fitted, and the locate move would override that.
           const startLocating = () => {
-            if (!KPR.routing.getRouteCoords()) geolocate.trigger();
+            if (!KPR.routing.getRouteCoords() && !/^#r=/.test(location.hash)) geolocate.trigger();
           };
           if (map.loaded()) startLocating();
           else map.once("load", startLocating);
@@ -330,6 +332,25 @@ KPR.map = (function () {
     return styleReady;
   }
 
+  /** Resolves true once the style has loaded (immediately if it already
+   * has), or false if that takes longer than timeoutMs. Adding sources and
+   * layers before this throws "Style is not done loading", so a route
+   * arriving from a share link waits for it. */
+  function whenStyleReady(timeoutMs = 20000) {
+    if (styleReady) return Promise.resolve(true);
+    return new Promise((resolve) => {
+      let settled = false;
+      const finish = (ok) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve(ok);
+      };
+      const timer = setTimeout(() => finish(false), timeoutMs);
+      map.once("style.load", () => finish(true));
+    });
+  }
+
   /** Turn off the planner's locate-me tracking. Drive mode calls this on
    * start: it draws its own puck/camera, and leaving the planner's
    * GeolocateControl running at the same time would mean two different
@@ -344,6 +365,7 @@ KPR.map = (function () {
     onStyleReload,
     getFitPadding,
     isStyleReady,
+    whenStyleReady,
     applyPanelPadding,
     setStyleKey,
     getStyleKey,

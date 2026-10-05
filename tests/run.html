@@ -26,16 +26,36 @@
     <ul id="scene-list"></ul>
     <span id="scene-count"></span>
     <p id="scenes-empty"></p>
+
+    <!-- Share button and dialog, same ids/structure as index.html. -->
+    <button id="share-route" aria-disabled="true" title="">Share</button>
+    <div id="share-dialog" class="hidden">
+      <div class="dialog-box share-box">
+        <div id="share-qr-wrap"><canvas id="share-qr" width="1" height="1"></canvas></div>
+        <p id="share-qr-fallback" class="hidden"></p>
+        <label for="share-link">Link <input id="share-link" type="text" readonly></label>
+        <p id="share-long-hint" class="hidden"></p>
+        <p id="share-status" role="status"></p>
+        <button id="share-close" type="button">Close</button>
+        <button id="share-send" type="button" class="hidden">Send</button>
+        <button id="share-copy" type="button">Copy link</button>
+      </div>
+    </div>
   </div>
 
   <script src="harness.js"></script>
   <script src="../js/waypoints.js"></script>
   <script src="../js/scenes.js"></script>
+  <script src="../js/vendor/qrcodegen-v1.8.0-es5.js"></script>
+  <script src="../js/route-codec.js"></script>
   <script src="../js/storage.js"></script>
+  <script src="../js/share.js"></script>
   <script src="../js/app.js"></script>
   <script src="fixtures/route-fixtures.js"></script>
   <script src="scenes-coords.test.js"></script>
   <script src="storage.test.js"></script>
   <script src="render-audit.test.js"></script>
+  <script src="codec.test.js"></script>
+  <script src="share-ui.test.js"></script>
 </body>
 </html>

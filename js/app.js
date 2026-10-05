@@ -156,6 +156,9 @@ KPR.app = (function () {
       text.style.cursor = "pointer";
       list.appendChild(li);
     });
+
+    // Share needs at least 2 stops; keep its enabled look in step.
+    if (KPR.share) KPR.share.syncButton();
   }
 
   function _refreshSceneList() {
@@ -245,6 +248,7 @@ KPR.app = (function () {
       refreshLists();
     });
     KPR.storage.init();
+    KPR.share.init();
     KPR.search.init();
     KPR.drive.init();
     KPR.sheet.init();
@@ -253,6 +257,9 @@ KPR.app = (function () {
     _wireRecalcButton();
     _setMode("waypoint");
     refreshLists();
+    // Last: if the page was opened from a share link (#r=...), load it now
+    // that everything it touches is wired up.
+    KPR.share.loadFromHash();
   }
 
   return { init, getMode, setMode: _setMode, refreshLists };
