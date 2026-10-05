@@ -202,10 +202,21 @@ h2 .count { font-weight: 600; letter-spacing: 0; }
 
 #panel-footer {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  /* Save | Share | Load on one row; Start drive spans all three. */
+  grid-template-columns: repeat(3, 1fr);
   gap: 10px;
   padding: 12px 16px 16px;
   border-top: 1px solid var(--line);
+}
+/* Three buttons share the row, so keep them from stretching the grid. */
+#panel-footer .secondary-btn {
+  min-width: 0;
+  white-space: nowrap;
+  padding: 10px 6px;
+}
+#panel-footer .secondary-btn .btn-icon {
+  vertical-align: -2px;
+  margin-right: 3px;
 }
 
 .drive-btn {
@@ -253,6 +264,8 @@ button:focus-visible { outline: 2px solid #60a5fa; outline-offset: 2px; }
   color: var(--text);
 }
 .secondary-btn:hover { background: var(--surface-3); }
+/* Share stays clickable (it explains why it can't open yet) but looks off. */
+.secondary-btn[aria-disabled="true"] { opacity: 0.55; cursor: not-allowed; }
 
 .icon-btn {
   padding: 6px 10px;
@@ -692,6 +705,22 @@ button:focus-visible { outline: 2px solid #60a5fa; outline-offset: 2px; }
 }
 .dialog-box .button-row { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
 
+/* Share dialog (QR + link). */
+.share-box { max-height: 92vh; max-height: 92dvh; overflow-y: auto; }
+.share-box .share-intro { margin: -8px 0 14px; }
+.share-box .button-row { flex-wrap: wrap; }
+#share-qr-wrap { display: flex; justify-content: center; margin-bottom: 14px; }
+#share-qr {
+  display: block;
+  width: 100%;
+  max-width: 320px;
+  aspect-ratio: 1;
+  image-rendering: pixelated; /* crisp modules when the canvas is scaled */
+  background: #fff;
+  border-radius: 8px;
+}
+#share-status { min-height: 1.5em; } /* reserve the line so the dialog doesn't jump */
+
 .color-row { display: flex; align-items: center; gap: 12px; margin-top: 6px; text-transform: none; letter-spacing: 0; }
 .color-row input[type="color"] {
   width: 44px;
@@ -899,7 +928,8 @@ body.driving .mapboxgl-user-location-accuracy-circle { display: none !important;
 
   #panel-footer { padding: 12px 16px calc(12px + var(--safe-bottom)); }
   .drive-btn { padding: 15px 14px; font-size: 15px; }
-  .secondary-btn { padding: 13px 10px; }
+  .secondary-btn,
+  #panel-footer .secondary-btn { padding: 13px 10px; }
 
   /* Map controls clear of the sheet and the iOS insets. */
   #layer-toggle {

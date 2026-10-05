@@ -38,8 +38,31 @@ KPR.scenes = (function () {
   // type name gets its own remembered color too, not just the 6 presets).
   // Loaded from localStorage on init so color choices persist between
   // sessions; saved back on every change.
-  let typeColors = { ...DEFAULT_SCENE_COLORS };
+  //
+  // Keys are user-controlled (custom type names, names from shared links), so
+  // this has no prototype: a key like "constructor" or "__proto__" is then
+  // just an ordinary (missing) entry instead of a function or the prototype.
+  let typeColors = Object.assign(Object.create(null), DEFAULT_SCENE_COLORS);
   const COLOR_STORAGE_KEY = "kpr.sceneTypeColors";
+  const FALLBACK_COLOR = "#c3002f";
+
+  function _hasOwn(obj, key) {
+    return Object.prototype.hasOwnProperty.call(obj, key);
+  }
+
+  /** Only a plain #rrggbb color is ever used in a style attribute, paint
+   * property or color input; anything else gets `fallback`. */
+  function safeColor(value, fallback = FALLBACK_COLOR) {
+    return typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value) ? value : fallback;
+  }
+
+  /** Color for a scene category: the live (user-chosen) color, else the
+   * preset default for that type, else the Custom default. */
+  function _colorFor(type, typeLabel) {
+    const key = type === "Custom" ? typeLabel : type;
+    const preset = _hasOwn(DEFAULT_SCENE_COLORS, type) ? DEFAULT_SCENE_COLORS[type] : DEFAULT_SCENE_COLORS.Custom;
+    return safeColor(_hasOwn(typeColors, key) ? typeColors[key] : null, preset);
+  }
 
   let currentRouteCoords = null; // [{lat, lng}, ...] from routing.js
   let scenes = []; // { id, type, label, notes, startIdx, endIdx, sourceId, layerId, pinMarker, popup }
@@ -68,7 +91,7 @@ KPR.scenes = (function () {
     document.getElementById("scene-color-reset").addEventListener("click", () => {
       const key = _currentDialogTypeKey();
       const colorInput = document.getElementById("scene-color");
-      colorInput.value = DEFAULT_SCENE_COLORS[key] || DEFAULT_SCENE_COLORS.Custom;
+      colorInput.value = _hasOwn(DEFAULT_SCENE_COLORS, key) ? DEFAULT_SCENE_COLORS[key] : DEFAULT_SCENE_COLORS.Custom;
     });
 
     document.getElementById("scene-cancel").addEventListener("click", _closeDialog);
@@ -87,7 +110,13 @@ KPR.scenes = (function () {
       const raw = localStorage.getItem(COLOR_STORAGE_KEY);
       if (raw) {
         const saved = JSON.parse(raw);
-        typeColors = { ...DEFAULT_SCENE_COLORS, ...saved };
+        const merged = Object.assign(Object.create(null), DEFAULT_SCENE_COLORS);
+        if (saved && typeof saved === "object") {
+          Object.keys(saved).forEach((k) => {
+            if (typeof saved[k] === "string" && safeColor(saved[k], null)) merged[k] = saved[k];
+          });
+        }
+        typeColors = merged;
       }
     } catch (err) {
       console.warn("Could not load saved scene colors, using defaults.", err);
@@ -115,12 +144,15 @@ KPR.scenes = (function () {
   function _syncColorFieldToType() {
     const key = _currentDialogTypeKey();
     const colorInput = document.getElementById("scene-color");
-    colorInput.value = typeColors[key] || DEFAULT_SCENE_COLORS[key] || DEFAULT_SCENE_COLORS.Custom;
+    const fallback = _hasOwn(DEFAULT_SCENE_COLORS, key) ? DEFAULT_SCENE_COLORS[key] : DEFAULT_SCENE_COLORS.Custom;
+    colorInput.value = safeColor(_hasOwn(typeColors, key) ? typeColors[key] : null, fallback);
   }
 
   /** Set and persist the color for a scene category, and recolor any
-   * existing scenes of that category already on the map. */
+   * existing scenes of that category already on the map. Anything that
+   * isn't a #rrggbb color is ignored. */
   function setTypeColor(key, color) {
+    if (!safeColor(color, null)) return;
     typeColors[key] = color;
     _saveTypeColors();
     scenes
@@ -130,6 +162,7 @@ KPR.scenes = (function () {
   }
 
   function _recolorScene(scene, color) {
+    color = safeColor(color, scene.color);
     scene.color = color;
     const map = KPR.map.getMap();
     if (map.getLayer(scene.layerId)) {
@@ -140,7 +173,7 @@ KPR.scenes = (function () {
   }
 
   function getTypeColors() {
-    return { ...typeColors };
+    return Object.assign(Object.create(null), typeColors);
   }
 
   function onRouteUpdated(routeCoords) {
@@ -213,7 +246,7 @@ KPR.scenes = (function () {
     const labelInput = document.getElementById("scene-label");
     const notesInput = document.getElementById("scene-notes");
 
-    typeSel.value = (prefill && prefill.type in DEFAULT_SCENE_COLORS) ? prefill.type : "NVH";
+    typeSel.value = (prefill && _hasOwn(DEFAULT_SCENE_COLORS, prefill.type)) ? prefill.type : "NVH";
     customWrap.classList.toggle("hidden", typeSel.value !== "Custom");
     customInput.value = prefill && prefill.type === "Custom" ? prefill.typeLabel || "" : "";
     labelInput.value = prefill ? prefill.label || "" : "";
@@ -310,13 +343,13 @@ KPR.scenes = (function () {
 
   function addScene(startIdx, endIdx, type, typeLabel, label, notes) {
     const id = nextId++;
-    const colorKey = type === "Custom" ? typeLabel : type;
-    const color = typeColors[colorKey] || DEFAULT_SCENE_COLORS[type] || DEFAULT_SCENE_COLORS.Custom;
+    const color = _colorFor(type, typeLabel);
     const segment = currentRouteCoords.slice(startIdx, endIdx + 1);
 
     const map = KPR.map.getMap();
-    const popupHtml = _buildPopupHtml(typeLabel, label, notes);
-    const popup = new mapboxgl.Popup({ offset: 12, closeButton: true }).setHTML(popupHtml);
+    const popup = new mapboxgl.Popup({ offset: 12, closeButton: true }).setDOMContent(
+      buildPopupContent(typeLabel, label, notes)
+    );
 
     const sourceId = `kpr-scene-src-${id}`;
     const layerId = `kpr-scene-layer-${id}`;
@@ -342,9 +375,7 @@ KPR.scenes = (function () {
     _addSceneLayer(scene);
 
     const midpoint = segment[Math.floor(segment.length / 2)];
-    const pinEl = document.createElement("div");
-    pinEl.className = "scene-pin-marker-wrap";
-    pinEl.innerHTML = `<div class="scene-pin-marker" style="background:${color}">${_escapeHtml(label)}</div>`;
+    const pinEl = buildPinElement(label, color);
     // Anchored at its bottom edge and nudged up, so the label sits just above
     // the colored segment instead of covering the road (or a stop) under it.
     const pinMarker = new mapboxgl.Marker({ element: pinEl, anchor: "bottom", offset: [0, -6] })
@@ -360,23 +391,47 @@ KPR.scenes = (function () {
     return scene;
   }
 
-  function _buildPopupHtml(typeLabel, label, notes) {
-    const notesHtml = notes
-      ? `<p class="scene-popup-notes">${_escapeHtml(notes)}</p>`
-      : `<p class="scene-popup-notes scene-popup-notes-empty">No notes added.</p>`;
-    return (
-      `<div class="scene-popup">` +
-      `<div class="scene-popup-type">${_escapeHtml(typeLabel)}</div>` +
-      `<div class="scene-popup-label">${_escapeHtml(label)}</div>` +
-      notesHtml +
-      `</div>`
-    );
+  // Scene text can come from a shared link, so the popup and the map pin are
+  // built with DOM APIs (textContent / style properties), never as HTML
+  // strings: nothing the text contains can turn into markup or attributes.
+
+  function _text(value) {
+    return value == null ? "" : String(value);
   }
 
-  function _escapeHtml(str) {
-    const div = document.createElement("div");
-    div.textContent = str;
-    return div.innerHTML;
+  function _div(className, text) {
+    const el = document.createElement("div");
+    el.className = className;
+    el.textContent = text;
+    return el;
+  }
+
+  /** The notes popup shown when a scene segment or its pin is clicked. */
+  function buildPopupContent(typeLabel, label, notes) {
+    const root = document.createElement("div");
+    root.className = "scene-popup";
+    root.appendChild(_div("scene-popup-type", _text(typeLabel)));
+    root.appendChild(_div("scene-popup-label", _text(label)));
+    const p = document.createElement("p");
+    if (notes) {
+      p.className = "scene-popup-notes";
+      p.textContent = _text(notes);
+    } else {
+      p.className = "scene-popup-notes scene-popup-notes-empty";
+      p.textContent = "No notes added.";
+    }
+    root.appendChild(p);
+    return root;
+  }
+
+  /** The label pin drawn on the map at the middle of a scene. */
+  function buildPinElement(label, color) {
+    const wrap = document.createElement("div");
+    wrap.className = "scene-pin-marker-wrap";
+    const pin = _div("scene-pin-marker", _text(label));
+    pin.style.background = safeColor(color);
+    wrap.appendChild(pin);
+    return wrap;
   }
 
   function _removeSceneLayer(scene) {
@@ -417,15 +472,167 @@ KPR.scenes = (function () {
     if (onChangeCallback) onChangeCallback(scenes);
   }
 
-  /** Rebuild scenes from saved data once the route has been recalculated. */
+  // ---- saving / loading by coordinates -----------------------------------
+  //
+  // A scene is held as indices into the route polyline, but the number of
+  // points in that polyline changes whenever the route is recalculated (a
+  // different Mapbox response, a moved stop, a map data update). Index 40 of
+  // the old line can be a different road on the new one. So saved files also
+  // carry the start/end coordinates, and loading snaps those back onto the
+  // freshly calculated route. Files saved before this (format v1) have only
+  // indices and keep loading exactly as they always did.
+
+  const SWAP_TOLERANCE_METERS = 50;
+
+  function _isPoint(p) {
+    return !!p && Number.isFinite(p.lat) && Number.isFinite(p.lng);
+  }
+
+  function _isLatLng(lat, lng) {
+    return (
+      typeof lat === "number" && typeof lng === "number" &&
+      Number.isFinite(lat) && Number.isFinite(lng) &&
+      Math.abs(lat) <= 90 && Math.abs(lng) <= 180
+    );
+  }
+
+  /** Approximate ground distance in meters (fine over the short distances
+   * involved in snapping a point to a route). */
+  function _distMeters(aLat, aLng, bLat, bLng) {
+    const dLat = (bLat - aLat) * 111320;
+    const dLng = (bLng - aLng) * 111320 * Math.cos(((aLat + bLat) / 2) * (Math.PI / 180));
+    return Math.sqrt(dLat * dLat + dLng * dLng);
+  }
+
+  /** Index of the route point nearest to (lat, lng), searching from index
+   * `from` onward. Ties go to the earliest index. -1 if nothing to search. */
+  function nearestIndex(route, lat, lng, from = 0) {
+    if (!Array.isArray(route) || !Number.isFinite(lat) || !Number.isFinite(lng)) return -1;
+    let bestIdx = -1;
+    let bestDist = Infinity;
+    for (let i = Math.max(0, from); i < route.length; i++) {
+      if (!_isPoint(route[i])) continue;
+      const d = _distMeters(lat, lng, route[i].lat, route[i].lng);
+      if (d < bestDist) {
+        bestDist = d;
+        bestIdx = i;
+      }
+    }
+    return bestIdx;
+  }
+
+  /**
+   * Snap a saved scene's start/end coordinates onto `route`. Returns
+   * {startIdx, endIdx} with startIdx < endIdx and both inside the route, or
+   * null when that isn't possible (fewer than 2 points, bad coordinates).
+   * Never throws.
+   */
+  function snapToRoute(route, rec) {
+    if (!Array.isArray(route) || route.length < 2 || !rec) return null;
+    const { startLat, startLng, endLat, endLng } = rec;
+    if (![startLat, startLng, endLat, endLng].every(Number.isFinite)) return null;
+
+    const last = route.length - 1;
+    let start = nearestIndex(route, startLat, startLng);
+    let end = nearestIndex(route, endLat, endLng, Math.max(start, 0));
+    const endAny = nearestIndex(route, endLat, endLng);
+    if (start < 0 || end < 0 || endAny < 0) return null;
+
+    // Scene order follows the direction of travel. If the end only matches
+    // well BEHIND the start, the scene was saved reversed: swap the roles.
+    const dist = (i, lat, lng) => _distMeters(lat, lng, route[i].lat, route[i].lng);
+    if (dist(end, endLat, endLng) - dist(endAny, endLat, endLng) > SWAP_TOLERANCE_METERS) {
+      start = endAny;
+      end = nearestIndex(route, startLat, startLng, start);
+      if (end < 0) return null;
+    }
+
+    if (end <= start) {
+      if (start + 1 <= last) {
+        end = start + 1;
+      } else {
+        start = last - 1;
+        end = last;
+      }
+    }
+    return { startIdx: start, endIdx: end };
+  }
+
+  /**
+   * Work out where a saved scene record sits on `route`. Uses the saved
+   * coordinates when the record has them (format v2), otherwise the saved
+   * indices clamped to the route length, as before. Returns
+   * {startIdx, endIdx} or null if the record can't be placed.
+   */
+  function resolveSceneRange(route, rec) {
+    if (!Array.isArray(route) || route.length < 1 || !rec) return null;
+
+    if (_isLatLng(rec.startLat, rec.startLng) && _isLatLng(rec.endLat, rec.endLng)) {
+      return snapToRoute(route, rec);
+    }
+
+    if (!Number.isInteger(rec.startIdx) || !Number.isInteger(rec.endIdx)) return null;
+    const clamp = (i) => Math.max(0, Math.min(i, route.length - 1));
+    let startIdx = clamp(rec.startIdx);
+    let endIdx = clamp(rec.endIdx);
+    if (startIdx > endIdx) [startIdx, endIdx] = [endIdx, startIdx];
+    return { startIdx, endIdx };
+  }
+
+  /** One scene as written to a saved file: the fields it always had, plus
+   * the start/end coordinates. Prefers the scene's own drawn segment so the
+   * coordinates match what is on the map even if the route was recalculated
+   * since the scene was tagged. */
+  function buildSaveRecord(scene, route) {
+    const n = Array.isArray(route) ? route.length : 0;
+    const clamp = (i) => (n > 0 ? Math.max(0, Math.min(i, n - 1)) : i);
+    const rec = {
+      type: scene.type,
+      typeLabel: scene.typeLabel,
+      label: scene.label,
+      notes: scene.notes,
+      startIdx: clamp(scene.startIdx),
+      endIdx: clamp(scene.endIdx),
+    };
+    const seg = Array.isArray(scene.segment) && scene.segment.length > 0 ? scene.segment : null;
+    const from = seg ? seg[0] : n > 0 ? route[rec.startIdx] : null;
+    const to = seg ? seg[seg.length - 1] : n > 0 ? route[rec.endIdx] : null;
+    if (_isPoint(from) && _isPoint(to)) {
+      rec.startLat = from.lat;
+      rec.startLng = from.lng;
+      rec.endLat = to.lat;
+      rec.endLng = to.lng;
+    }
+    return rec;
+  }
+
+  /** Scenes in the shape written to a saved file. */
+  function getSaveData() {
+    return scenes.map((s) => buildSaveRecord(s, currentRouteCoords));
+  }
+
+  /** Rebuild scenes from saved data once the route has been recalculated.
+   * Returns how many were placed and how many had to be skipped. */
   function loadFrom(savedScenes) {
     clearAll();
-    if (!currentRouteCoords) return;
-    savedScenes.forEach((s) => {
-      const startIdx = Math.min(s.startIdx, currentRouteCoords.length - 1);
-      const endIdx = Math.min(s.endIdx, currentRouteCoords.length - 1);
-      addScene(startIdx, endIdx, s.type, s.typeLabel, s.label, s.notes);
+    const list = Array.isArray(savedScenes) ? savedScenes : [];
+    let loaded = 0;
+    let skipped = 0;
+    list.forEach((s) => {
+      try {
+        const range = resolveSceneRange(currentRouteCoords, s);
+        if (!range) {
+          skipped++;
+          return;
+        }
+        addScene(range.startIdx, range.endIdx, s.type, s.typeLabel, s.label, s.notes);
+        loaded++;
+      } catch (err) {
+        console.warn("Skipped a scene that could not be loaded.", err);
+        skipped++;
+      }
     });
+    return { loaded, skipped };
   }
 
   return {
@@ -438,8 +645,16 @@ KPR.scenes = (function () {
     getAll,
     count,
     loadFrom,
+    getSaveData,
+    nearestIndex,
+    snapToRoute,
+    resolveSceneRange,
+    buildSaveRecord,
     setTypeColor,
     getTypeColors,
+    safeColor,
+    buildPopupContent,
+    buildPinElement,
     DEFAULT_SCENE_COLORS,
   };
 })();

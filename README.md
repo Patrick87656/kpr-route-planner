@@ -40,6 +40,28 @@ python -m http.server 8000
 # then open http://localhost:8000
 ```
 
+## Sharing a route
+
+Tap **Share** (between **Save** and **Load**, needs at least 2 stops) to get
+a QR code and a link for the current route. Scan the QR code with a phone
+camera, or use **Copy link** / **Send…** (the system share sheet, where the
+device has one). Opening the link starts the app with the route, stops and
+scenes already loaded; if stops are already on the map it asks before
+replacing them.
+
+**Save** and **Load** (the JSON file) still work exactly as before and stay
+the easiest way to move routes onto the in-car iPads. On iPhone and iPad a
+link opens in Safari, not in the installed home-screen app.
+
+The route travels inside the link itself (the part after `#`), so no server
+ever receives it, and the QR code is drawn on the device. See the privacy
+note in [DEPLOY.md](DEPLOY.md#sharing-a-route).
+
+The QR code is made by a vendored copy of Project Nayuki's QR Code
+generator (no CDN): `js/vendor/qrcodegen-v1.8.0-es5.js`, from
+https://github.com/nayuki/QR-Code-generator/releases/tag/v1.8.0 (v1.8.0,
+commit `720f62bddb7226106071d4728c292cb1df519ceb`), MIT License.
+
 ## Phones, iPads, and hosting
 
 The app is an installable PWA (`manifest.webmanifest`, `service-worker.js`,
@@ -55,8 +77,24 @@ Same as the Leaflet version. The map-library-specific logic lives in
 `js/search.js`; `js/storage.js` and `js/app.js` are essentially shared
 logic (with Mapbox-specific init timing in `app.js`/`index.html`).
 
+Sharing lives in `js/route-codec.js` (builds and strictly validates the link
+payload) and `js/share.js` (Share button, dialog, opening links). The
+vendored QR library is in `js/vendor/`. Automated tests are in `tests/`.
+
 Scene route segments are rendered as individual GL sources/layers (one pair
 per scene) rather than Leaflet polyline objects — Mapbox GL draws vector
 data via `addSource`/`addLayer`, not per-feature draw calls. These are
 automatically rebuilt after a style change (the street/satellite toggle
 wipes custom layers — see `KPR.map.onStyleReload` in `map.js`).
+
+## Running the tests
+
+No install needed. From this folder:
+
+```powershell
+powershell -NoProfile -File tests\run-tests.ps1
+```
+
+It opens tests/run.html in headless Edge (or Chrome) and prints
+RESULT: PASS or RESULT: FAIL. The tests don't use Mapbox or the network.
+You can also open tests/run.html in a browser to see the report.
