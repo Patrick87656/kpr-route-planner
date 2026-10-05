@@ -417,15 +417,167 @@ KPR.scenes = (function () {
     if (onChangeCallback) onChangeCallback(scenes);
   }
 
-  /** Rebuild scenes from saved data once the route has been recalculated. */
+  // ---- saving / loading by coordinates -----------------------------------
+  //
+  // A scene is held as indices into the route polyline, but the number of
+  // points in that polyline changes whenever the route is recalculated (a
+  // different Mapbox response, a moved stop, a map data update). Index 40 of
+  // the old line can be a different road on the new one. So saved files also
+  // carry the start/end coordinates, and loading snaps those back onto the
+  // freshly calculated route. Files saved before this (format v1) have only
+  // indices and keep loading exactly as they always did.
+
+  const SWAP_TOLERANCE_METERS = 50;
+
+  function _isPoint(p) {
+    return !!p && Number.isFinite(p.lat) && Number.isFinite(p.lng);
+  }
+
+  function _isLatLng(lat, lng) {
+    return (
+      typeof lat === "number" && typeof lng === "number" &&
+      Number.isFinite(lat) && Number.isFinite(lng) &&
+      Math.abs(lat) <= 90 && Math.abs(lng) <= 180
+    );
+  }
+
+  /** Approximate ground distance in meters (fine over the short distances
+   * involved in snapping a point to a route). */
+  function _distMeters(aLat, aLng, bLat, bLng) {
+    const dLat = (bLat - aLat) * 111320;
+    const dLng = (bLng - aLng) * 111320 * Math.cos(((aLat + bLat) / 2) * (Math.PI / 180));
+    return Math.sqrt(dLat * dLat + dLng * dLng);
+  }
+
+  /** Index of the route point nearest to (lat, lng), searching from index
+   * `from` onward. Ties go to the earliest index. -1 if nothing to search. */
+  function nearestIndex(route, lat, lng, from = 0) {
+    if (!Array.isArray(route) || !Number.isFinite(lat) || !Number.isFinite(lng)) return -1;
+    let bestIdx = -1;
+    let bestDist = Infinity;
+    for (let i = Math.max(0, from); i < route.length; i++) {
+      if (!_isPoint(route[i])) continue;
+      const d = _distMeters(lat, lng, route[i].lat, route[i].lng);
+      if (d < bestDist) {
+        bestDist = d;
+        bestIdx = i;
+      }
+    }
+    return bestIdx;
+  }
+
+  /**
+   * Snap a saved scene's start/end coordinates onto `route`. Returns
+   * {startIdx, endIdx} with startIdx < endIdx and both inside the route, or
+   * null when that isn't possible (fewer than 2 points, bad coordinates).
+   * Never throws.
+   */
+  function snapToRoute(route, rec) {
+    if (!Array.isArray(route) || route.length < 2 || !rec) return null;
+    const { startLat, startLng, endLat, endLng } = rec;
+    if (![startLat, startLng, endLat, endLng].every(Number.isFinite)) return null;
+
+    const last = route.length - 1;
+    let start = nearestIndex(route, startLat, startLng);
+    let end = nearestIndex(route, endLat, endLng, Math.max(start, 0));
+    const endAny = nearestIndex(route, endLat, endLng);
+    if (start < 0 || end < 0 || endAny < 0) return null;
+
+    // Scene order follows the direction of travel. If the end only matches
+    // well BEHIND the start, the scene was saved reversed: swap the roles.
+    const dist = (i, lat, lng) => _distMeters(lat, lng, route[i].lat, route[i].lng);
+    if (dist(end, endLat, endLng) - dist(endAny, endLat, endLng) > SWAP_TOLERANCE_METERS) {
+      start = endAny;
+      end = nearestIndex(route, startLat, startLng, start);
+      if (end < 0) return null;
+    }
+
+    if (end <= start) {
+      if (start + 1 <= last) {
+        end = start + 1;
+      } else {
+        start = last - 1;
+        end = last;
+      }
+    }
+    return { startIdx: start, endIdx: end };
+  }
+
+  /**
+   * Work out where a saved scene record sits on `route`. Uses the saved
+   * coordinates when the record has them (format v2), otherwise the saved
+   * indices clamped to the route length, as before. Returns
+   * {startIdx, endIdx} or null if the record can't be placed.
+   */
+  function resolveSceneRange(route, rec) {
+    if (!Array.isArray(route) || route.length < 1 || !rec) return null;
+
+    if (_isLatLng(rec.startLat, rec.startLng) && _isLatLng(rec.endLat, rec.endLng)) {
+      return snapToRoute(route, rec);
+    }
+
+    if (!Number.isInteger(rec.startIdx) || !Number.isInteger(rec.endIdx)) return null;
+    const clamp = (i) => Math.max(0, Math.min(i, route.length - 1));
+    let startIdx = clamp(rec.startIdx);
+    let endIdx = clamp(rec.endIdx);
+    if (startIdx > endIdx) [startIdx, endIdx] = [endIdx, startIdx];
+    return { startIdx, endIdx };
+  }
+
+  /** One scene as written to a saved file: the fields it always had, plus
+   * the start/end coordinates. Prefers the scene's own drawn segment so the
+   * coordinates match what is on the map even if the route was recalculated
+   * since the scene was tagged. */
+  function buildSaveRecord(scene, route) {
+    const n = Array.isArray(route) ? route.length : 0;
+    const clamp = (i) => (n > 0 ? Math.max(0, Math.min(i, n - 1)) : i);
+    const rec = {
+      type: scene.type,
+      typeLabel: scene.typeLabel,
+      label: scene.label,
+      notes: scene.notes,
+      startIdx: clamp(scene.startIdx),
+      endIdx: clamp(scene.endIdx),
+    };
+    const seg = Array.isArray(scene.segment) && scene.segment.length > 0 ? scene.segment : null;
+    const from = seg ? seg[0] : n > 0 ? route[rec.startIdx] : null;
+    const to = seg ? seg[seg.length - 1] : n > 0 ? route[rec.endIdx] : null;
+    if (_isPoint(from) && _isPoint(to)) {
+      rec.startLat = from.lat;
+      rec.startLng = from.lng;
+      rec.endLat = to.lat;
+      rec.endLng = to.lng;
+    }
+    return rec;
+  }
+
+  /** Scenes in the shape written to a saved file. */
+  function getSaveData() {
+    return scenes.map((s) => buildSaveRecord(s, currentRouteCoords));
+  }
+
+  /** Rebuild scenes from saved data once the route has been recalculated.
+   * Returns how many were placed and how many had to be skipped. */
   function loadFrom(savedScenes) {
     clearAll();
-    if (!currentRouteCoords) return;
-    savedScenes.forEach((s) => {
-      const startIdx = Math.min(s.startIdx, currentRouteCoords.length - 1);
-      const endIdx = Math.min(s.endIdx, currentRouteCoords.length - 1);
-      addScene(startIdx, endIdx, s.type, s.typeLabel, s.label, s.notes);
+    const list = Array.isArray(savedScenes) ? savedScenes : [];
+    let loaded = 0;
+    let skipped = 0;
+    list.forEach((s) => {
+      try {
+        const range = resolveSceneRange(currentRouteCoords, s);
+        if (!range) {
+          skipped++;
+          return;
+        }
+        addScene(range.startIdx, range.endIdx, s.type, s.typeLabel, s.label, s.notes);
+        loaded++;
+      } catch (err) {
+        console.warn("Skipped a scene that could not be loaded.", err);
+        skipped++;
+      }
     });
+    return { loaded, skipped };
   }
 
   return {
@@ -438,6 +590,11 @@ KPR.scenes = (function () {
     getAll,
     count,
     loadFrom,
+    getSaveData,
+    nearestIndex,
+    snapToRoute,
+    resolveSceneRange,
+    buildSaveRecord,
     setTypeColor,
     getTypeColors,
     DEFAULT_SCENE_COLORS,

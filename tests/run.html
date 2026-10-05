@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>KPR Route Planner tests</title>
+  <!--
+    Headless test page. Run it with tests/run-tests.ps1 (or open it in a
+    browser). It loads the app modules that don't need Mapbox and never calls
+    KPR.app.init(), so no map, token or network is involved.
+  -->
+</head>
+<body>
+  <pre id="results">Running…</pre>
+
+  <!-- DOM skeleton: just the element ids that list/render code looks up. -->
+  <div id="fixture-dom" hidden>
+    <input id="route-name" value="">
+    <button id="clear-waypoints">Clear</button>
+    <div id="route-status" class="status-box"></div>
+    <span id="stat-stops"></span>
+    <ol id="waypoint-list"></ol>
+    <span id="waypoint-count"></span>
+    <p id="itinerary-empty"></p>
+    <h2>Scene legend</h2>
+    <ul id="scene-legend"></ul>
+    <ul id="scene-list"></ul>
+    <span id="scene-count"></span>
+    <p id="scenes-empty"></p>
+  </div>
+
+  <script src="harness.js"></script>
+  <script src="../js/waypoints.js"></script>
+  <script src="../js/scenes.js"></script>
+  <script src="../js/storage.js"></script>
+  <script src="fixtures/route-fixtures.js"></script>
+  <script src="scenes-coords.test.js"></script>
+  <script src="storage.test.js"></script>
+</body>
+</html>

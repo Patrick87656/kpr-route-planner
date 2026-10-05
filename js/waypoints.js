@@ -33,6 +33,7 @@ KPR.waypoints = (function () {
   let waypoints = [];
   let nextId = 1;
   let onChangeCallback = null;
+  let suppressNotify = false; // set only while loadFrom runs with { quiet: true }
 
   const lookupQueue = [];
   let lookupRunning = false;
@@ -192,6 +193,7 @@ KPR.waypoints = (function () {
   /** `info.namesOnly` means only display names changed (no position or
    * order change), so listeners can skip recalculating the route. */
   function _notifyChange(info) {
+    if (suppressNotify) return;
     if (onChangeCallback) onChangeCallback(info || {});
   }
 
@@ -221,9 +223,17 @@ KPR.waypoints = (function () {
 
   /** Rebuild from saved data (used by storage.js on load). Replaces current
    * state. Older saved files have no names; those get looked up. */
-  function loadFrom(points) {
+  function loadFrom(points, opts) {
     clearAll();
-    points.forEach((p) => addWaypoint(p.lat, p.lng, { name: p.name, detail: p.detail }));
+    // Each addWaypoint notifies, and every notification makes the app
+    // recalculate the route (one Directions request per stop). With
+    // `quiet` the caller recalculates once itself after all stops are in.
+    suppressNotify = !!(opts && opts.quiet);
+    try {
+      points.forEach((p) => addWaypoint(p.lat, p.lng, { name: p.name, detail: p.detail }));
+    } finally {
+      suppressNotify = false;
+    }
   }
 
   return {
