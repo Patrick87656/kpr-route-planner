@@ -97,8 +97,9 @@ access. Choose **Allow While Using App**.
 
 ## Sharing a route
 
-The **Share** button makes a link and a QR code for the current route.
-Opening the link loads that route in the app. People on the hosted page need
+The **Share** button makes a link and a QR code for the current route. It is
+on PC and iPad screens and hidden on phone-sized screens (routes are planned
+on a PC). Opening the link loads that route in the app, on any device. People on the hosted page need
 nothing installed. **Save** and **Load** (the JSON file) still work the same
 and remain the way to put routes onto the in-car iPads.
 

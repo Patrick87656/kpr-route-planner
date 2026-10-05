@@ -43,7 +43,10 @@ python -m http.server 8000
 ## Sharing a route
 
 Tap **Share** (between **Save** and **Load**, needs at least 2 stops) to get
-a QR code and a link for the current route. Scan the QR code with a phone
+a QR code and a link for the current route. Share is on PC and iPad screens;
+it is hidden on phone-sized screens, where the footer is just **Save** and
+**Load** (routes are planned on a PC, and opening a shared link works fine on
+a phone). Scan the QR code with a phone
 camera, or use **Copy link** / **Send…** (the system share sheet, where the
 device has one). Opening the link starts the app with the route, stops and
 scenes already loaded; if stops are already on the map it asks before

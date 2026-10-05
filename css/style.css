@@ -927,6 +927,12 @@ body.driving .mapboxgl-user-location-accuracy-circle { display: none !important;
   .remove-btn { width: 34px; height: 34px; }
 
   #panel-footer { padding: 12px 16px calc(12px + var(--safe-bottom)); }
+  /* Routes are planned on a PC and shared from there, so phone-sized screens
+     don't get the Share button: the footer is just Save | Load again. (PCs and
+     iPads, which are wider than this breakpoint, keep all three buttons.
+     Opening a shared link still works on a phone; only sending is hidden.) */
+  #panel-footer #share-route { display: none; }
+  #panel-footer { grid-template-columns: repeat(2, 1fr); }
   .drive-btn { padding: 15px 14px; font-size: 15px; }
   .secondary-btn,
   #panel-footer .secondary-btn { padding: 13px 10px; }
