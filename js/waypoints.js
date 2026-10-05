@@ -58,7 +58,10 @@ KPR.waypoints = (function () {
   function _buildBadgeElement(number) {
     const el = document.createElement("div");
     el.className = "waypoint-marker-wrap";
-    el.innerHTML = `<div class="waypoint-marker">${number}</div>`;
+    const badge = document.createElement("div");
+    badge.className = "waypoint-marker";
+    badge.textContent = String(number);
+    el.appendChild(badge);
     return el;
   }
 

@@ -63,7 +63,7 @@ KPR.search = (function () {
 
     if (!trimmed) {
       resultsList.classList.add("hidden");
-      resultsList.innerHTML = "";
+      resultsList.replaceChildren();
       return;
     }
 
@@ -74,7 +74,7 @@ KPR.search = (function () {
     lastRequestAt = Date.now();
 
     resultsList.classList.remove("hidden");
-    resultsList.innerHTML = `<li class="item-label">Searching...</li>`;
+    _showStatusRow(resultsList, "Searching...");
     if (KPR.sheet) KPR.sheet.expand(); // make room for results on mobile
 
     try {
@@ -94,8 +94,17 @@ KPR.search = (function () {
       _renderResults(data.suggestions || []);
     } catch (err) {
       console.error("Place search failed:", err);
-      resultsList.innerHTML = `<li class="item-label">Search failed: ${_escapeHtml(err.message)}</li>`;
+      _showStatusRow(resultsList, `Search failed: ${err.message}`);
     }
+  }
+
+  /** Replace the results with a single plain-text status row. Text goes in
+   * via textContent because it can include error messages from the network. */
+  function _showStatusRow(resultsList, text) {
+    const li = document.createElement("li");
+    li.className = "item-label";
+    li.textContent = text;
+    resultsList.replaceChildren(li);
   }
 
   /** Gets coordinates for a suggestion via /retrieve (cached per session). */
@@ -132,10 +141,10 @@ KPR.search = (function () {
 
   function _renderResults(suggestions) {
     const resultsList = document.getElementById("search-results");
-    resultsList.innerHTML = "";
+    resultsList.replaceChildren();
 
     if (!suggestions || suggestions.length === 0) {
-      resultsList.innerHTML = `<li class="item-label">No matches found.</li>`;
+      _showStatusRow(resultsList, "No matches found.");
       return;
     }
 
@@ -145,17 +154,30 @@ KPR.search = (function () {
 
       const li = document.createElement("li");
       li.classList.add("search-result");
-      li.innerHTML = `
-        <span class="item-label search-result-text" title="${_escapeHtml(address || name)}">
-          <span class="search-result-name">${_escapeHtml(name)}</span>
-          ${address ? `<span class="search-result-addr">${_escapeHtml(address)}</span>` : ""}
-        </span>
-        <button class="remove-btn add-waypoint-btn" title="Add as waypoint">+</button>
-      `;
+      // Built with DOM APIs: these strings come from the Mapbox API.
+      const textEl = document.createElement("span");
+      textEl.className = "item-label search-result-text";
+      textEl.title = address || name;
+      const nameEl = document.createElement("span");
+      nameEl.className = "search-result-name";
+      nameEl.textContent = name;
+      textEl.appendChild(nameEl);
+      if (address) {
+        const addrEl = document.createElement("span");
+        addrEl.className = "search-result-addr";
+        addrEl.textContent = address;
+        textEl.appendChild(addrEl);
+      }
+      const addBtn = document.createElement("button");
+      addBtn.className = "remove-btn add-waypoint-btn";
+      addBtn.title = "Add as waypoint";
+      addBtn.textContent = "+";
+      li.appendChild(textEl);
+      li.appendChild(addBtn);
 
       // Clicking the result text pans/zooms the map there, so the user can
       // look around before committing to adding a waypoint.
-      li.querySelector(".search-result-text").addEventListener("click", async () => {
+      textEl.addEventListener("click", async () => {
         try {
           const { lat, lng } = await _getCoords(s);
           KPR.map.getMap().flyTo({ center: [lng, lat], zoom: 15 });
@@ -164,7 +186,7 @@ KPR.search = (function () {
         }
       });
 
-      li.querySelector(".add-waypoint-btn").addEventListener("click", async () => {
+      addBtn.addEventListener("click", async () => {
         try {
           const { lat, lng } = await _getCoords(s);
           // The search result already names the place, so the itinerary
@@ -194,12 +216,6 @@ KPR.search = (function () {
       const r = (Math.random() * 16) | 0;
       return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
     });
-  }
-
-  function _escapeHtml(str) {
-    const div = document.createElement("div");
-    div.textContent = str;
-    return div.innerHTML;
   }
 
   function _sleep(ms) {
