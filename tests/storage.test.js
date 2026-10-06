@@ -103,6 +103,127 @@
     assert.equal(St.safeName("a".repeat(200)).length, 80);
   });
 
+  // ---- format v3: optional vehicles ------------------------------------------
+
+  const saveArgs = (extra) =>
+    Object.assign(
+      {
+        name: "V3",
+        waypoints: F.v1File.waypoints,
+        scenes: [],
+        routeCoords: F.oldRoute,
+        routeSummary: F.v1File.routeSummary,
+        now: 0,
+      },
+      extra
+    );
+
+  test("v3 save: formatVersion is 3 and 'vehicles' is written only when non-empty", () => {
+    const without = St.buildSaveData(saveArgs());
+    assert.equal(without.formatVersion, 3);
+    assert.equal("vehicles" in without, false);
+    assert.equal("vehicles" in St.buildSaveData(saveArgs({ vehicles: [] })), false);
+    assert.equal("vehicles" in St.buildSaveData(saveArgs({ vehicles: ["", "  "] })), false);
+    assert.equal("vehicles" in St.buildSaveData(saveArgs({ vehicles: "nope-not-list" })), true, "a string is one name per line");
+
+    const withList = St.buildSaveData(saveArgs({ vehicles: [" Ariya ", "ariya", "Leaf"] }));
+    assert.deepEqual(withList.vehicles, ["Ariya", "Leaf"]);
+    // Everything that was in a v2 file is still there.
+    ["name", "savedAt", "waypoints", "routeCoords", "routeSummary", "scenes"].forEach((k) =>
+      assert.ok(k in withList, k)
+    );
+  });
+
+  test("v3 round trip: a saved file with vehicles loads them back", () => {
+    const file = JSON.parse(JSON.stringify(St.buildSaveData(saveArgs({ vehicles: ["Ariya #1", "Leaf"] }))));
+    const back = St.normalizeFileData(file);
+    assert.deepEqual(back.vehicles, ["Ariya #1", "Leaf"]);
+    assert.equal(back.waypoints.length, 4);
+  });
+
+  test("v1 fixture still normalizes to exactly the same route, with no 'vehicles' key", () => {
+    const out = St.normalizeFileData(JSON.parse(JSON.stringify(F.v1File)));
+    assert.deepEqual(Object.keys(out).sort(), ["name", "scenes", "waypoints"]);
+    assert.equal(out.name, "Fixture loop");
+    assert.deepEqual(out.waypoints, F.v1File.waypoints.map((w) => ({ lat: w.lat, lng: w.lng, name: w.name, detail: w.detail })));
+    assert.deepEqual(out.scenes, [
+      { type: "NVH", typeLabel: "NVH", label: "Rough patch", notes: "Expansion joints", startIdx: 2, endIdx: 5 },
+      { type: "Custom", typeLabel: "Infotainment", label: "Dead zone", notes: "", startIdx: 6, endIdx: 9 },
+      { type: "Braking", typeLabel: "Braking", label: "Hard stop", notes: "From 50 mph", startIdx: 3, endIdx: 9 },
+    ]);
+  });
+
+  test("a hand-made v2 file (coordinates, no vehicles) normalizes as before, with no 'vehicles' key", () => {
+    const v2 = {
+      formatVersion: 2,
+      name: "Old v2",
+      savedAt: "2025-02-02T00:00:00.000Z",
+      waypoints: [
+        { lat: 42, lng: -83, name: "A", detail: "x" },
+        { lat: 42.01, lng: -83, name: "B", detail: "y" },
+      ],
+      routeCoords: [],
+      scenes: [
+        {
+          type: "NVH",
+          typeLabel: "NVH",
+          label: "Rough",
+          notes: "n",
+          startIdx: 1,
+          endIdx: 4,
+          startLat: 42.001,
+          startLng: -83,
+          endLat: 42.004,
+          endLng: -83,
+        },
+      ],
+    };
+    const out = St.normalizeFileData(JSON.parse(JSON.stringify(v2)));
+    assert.deepEqual(Object.keys(out).sort(), ["name", "scenes", "waypoints"]);
+    assert.deepEqual(out.waypoints, v2.waypoints);
+    assert.deepEqual(out.scenes, [
+      {
+        type: "NVH",
+        typeLabel: "NVH",
+        label: "Rough",
+        notes: "n",
+        startIdx: 1,
+        endIdx: 4,
+        startLat: 42.001,
+        startLng: -83,
+        endLat: 42.004,
+        endLng: -83,
+      },
+    ]);
+  });
+
+  test("a v3 file with vehicles still loads its waypoints and scenes unchanged", () => {
+    const base = St.normalizeFileData(JSON.parse(JSON.stringify(F.v1File)));
+    const v3 = Object.assign(JSON.parse(JSON.stringify(F.v1File)), { formatVersion: 3, vehicles: ["Ariya"] });
+    const out = St.normalizeFileData(v3);
+    assert.deepEqual(out.waypoints, base.waypoints);
+    assert.deepEqual(out.scenes, base.scenes);
+    assert.deepEqual(out.vehicles, ["Ariya"]);
+  });
+
+  test("hostile, oversized or non-array vehicles in a file are normalized or ignored", () => {
+    const vehiclesOf = (v) => St.normalizeFileData(validFile({ vehicles: v })).vehicles;
+    // Not lists at all -> ignored (key absent).
+    [undefined, null, 5, true, {}, { 0: "A", length: 1 }, [], ["", "  "], [1, null, {}, []]].forEach((v) => {
+      const out = St.normalizeFileData(validFile({ vehicles: v }));
+      assert.equal("vehicles" in out, false, JSON.stringify(v));
+    });
+    // A plain string is read as one name per line, like the planner box.
+    assert.deepEqual(vehiclesOf("A\nB"), ["A", "B"]);
+    // Mixed junk keeps only the usable names, normalized.
+    assert.deepEqual(vehiclesOf(["  A  ", 7, "a", "B\u0001C", null, "\t"]), ["A", "BC"]);
+    // Oversized: 31+ names are cut to 30, long names to 80.
+    const many = Array.from({ length: 50 }, (_, i) => "Car " + i);
+    assert.equal(vehiclesOf(many).length, 30);
+    assert.equal(vehiclesOf(["x".repeat(500)])[0].length, 80);
+    // Markup stays literal text (the planner only ever puts it in .value / textContent).
+    assert.deepEqual(vehiclesOf(["<img src=x onerror=alert(1)>"]), ["<img src=x onerror=alert(1)>"]);
+  });
   // ---- applyRoute (with the collaborating modules replaced by stubs) --------
 
   /** Swap in stubs for the modules applyRoute talks to; returns a restore

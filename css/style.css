@@ -774,6 +774,29 @@ button:focus-visible { outline: 2px solid #60a5fa; outline-offset: 2px; }
   cursor: pointer;
 }
 
+/* Small Good / Bad / not-rated marker on a scene's map pin. Fixed palette
+   (not the scene's own color) so it reads the same on every scene. The
+   marker element is absolutely positioned by Mapbox, so this anchors to it. */
+.rating-badge {
+  position: absolute;
+  top: -9px;
+  right: -9px;
+  width: 18px;
+  height: 18px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+}
+.rating-badge svg { width: 10px; height: 10px; fill: #fff; display: block; }
+.rating-badge.good { background: #16a34a; }
+.rating-badge.bad { background: #dc2626; }
+.rating-badge.none { background: #6b7280; }
+
 .mapboxgl-popup-content {
   padding: 14px 16px;
   border: 1px solid var(--line);

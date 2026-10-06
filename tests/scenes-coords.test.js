@@ -112,7 +112,7 @@
       routeSummary: F.v1File.routeSummary,
       now: 0,
     });
-    assert.equal(file.formatVersion, 2);
+    assert.equal(file.formatVersion, 3);
     assert.equal(file.savedAt, "1970-01-01T00:00:00.000Z");
     assert.equal(file.routeCoords.length, F.oldRoute.length);
     assert.deepEqual(file.routeSummary, F.v1File.routeSummary);
