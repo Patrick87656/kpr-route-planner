@@ -117,6 +117,28 @@ Privacy, in plain terms:
 - On iPhone and iPad, a link opens in Safari, not in the installed
   home-screen app.
 
+## Scene ratings beta
+
+Good/Bad scene ratings, the vehicle picker and Send results are behind a
+switch that is off by default. See the README for the workflow.
+
+- **Turn on:** open the hosted page with `?beta=1` on the end of the address.
+  **Turn off:** `?beta=0`. The choice is remembered per browser.
+- **iOS home-screen app:** it has its own storage, separate from Safari, and
+  it always launches without a `?beta` parameter. Turning beta on in Safari
+  does not turn it on in the installed app. Enable it in the browser or app
+  the evaluator actually uses, or change `DEFAULT_ON` in `js/beta.js` to make
+  it the default for everyone.
+- **First open needs a network connection.** A `?beta=1` address is cached
+  separately from the plain address, so the first open with the parameter
+  can't come from the offline cache.
+- **Results links** (`#res=`) open a read-only results view on any device,
+  with no switch needed. They hold the vehicle, evaluator name, route and
+  scene notes in the part after the `#`, so they never reach GitHub Pages,
+  but anyone holding the link can read them.
+- **Roll back:** the `stable-v1` tag is the known-good build. Revert the
+  merge commit on `main` and the workflow redeploys it.
+
 ## Updating
 
 Merge to `main` and the workflow redeploys. Devices pick up the new

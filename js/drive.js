@@ -1195,6 +1195,24 @@ KPR.drive = (function () {
     document.getElementById("arrived-send").addEventListener("click", _onArrivedSend);
     document.getElementById("exit-send").addEventListener("click", _onExitSend);
     document.getElementById("exit-skip").addEventListener("click", stop);
+    // Keyboard only: keep Tab inside the exit prompt while it is open, so focus
+    // can't wander onto the map controls behind it (the prompt is role=dialog).
+    document.getElementById("drive-exit-prompt").addEventListener("keydown", (e) => {
+      if (e.key !== "Tab") return;
+      const btns = [document.getElementById("exit-send"), document.getElementById("exit-skip")].filter(
+        (b) => b && !b.disabled
+      );
+      if (btns.length === 0) return;
+      const first = btns[0];
+      const last = btns[btns.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    });
     document.getElementById("drive-sim").addEventListener("click", toggleSim);
     document.getElementById("drive-sim-speed").addEventListener("click", cycleSimSpeed);
     document.getElementById("drive-recenter").addEventListener("click", () => setFollow(true));
