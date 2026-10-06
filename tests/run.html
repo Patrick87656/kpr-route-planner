@@ -65,6 +65,26 @@
       <button id="last-results-send" type="button">Send results</button>
       <button id="last-results-delete" type="button">Delete</button>
     </section>
+    <!-- Results view (read-only panel for a #res= link), same ids as index.html. -->
+    <section id="results-view" class="hidden">
+      <div id="results-test-banner" class="hidden" role="status">TEST</div>
+      <h2 id="results-route" tabindex="-1"></h2>
+      <dl>
+        <div><dt>Vehicle</dt><dd id="results-vehicle"></dd></div>
+        <div><dt>Evaluator</dt><dd id="results-evaluator"></dd></div>
+        <div><dt>Drive</dt><dd id="results-when"></dd></div>
+      </dl>
+      <ul id="results-counts">
+        <li><span id="results-count-good"></span></li>
+        <li><span id="results-count-bad"></span></li>
+        <li><span id="results-count-none"></span></li>
+      </ul>
+      <button id="results-export" type="button">Export CSV</button>
+      <button id="results-edit" type="button">Open as editable route</button>
+      <button id="results-close" type="button">Close results</button>
+      <p id="results-note" class="hidden"></p>
+      <ol id="results-scenes"></ol>
+    </section>
     <div id="vehicle-dialog" class="dialog hidden">
       <div class="dialog-box">
         <p id="vehicle-dialog-route" class="hint"></p>
@@ -87,6 +107,7 @@
   <script src="../js/storage.js"></script>
   <script src="../js/share.js"></script>
   <script src="../js/app.js"></script>
+  <script src="../js/results.js"></script>
   <script src="fixtures/route-fixtures.js"></script>
   <script src="scenes-coords.test.js"></script>
   <script src="storage.test.js"></script>
@@ -99,5 +120,6 @@
   <script src="scene-badge.test.js"></script>
   <script src="evaluation.test.js"></script>
   <script src="send-results.test.js"></script>
+  <script src="results.test.js"></script>
 </body>
 </html>

@@ -31,6 +31,7 @@ const APP_SHELL = [
   "./js/share.js",
   "./js/evaluation.js",
   "./js/drive.js",
+  "./js/results.js",
   "./js/sheet.js",
   "./js/app.js",
   "./config.local.js",

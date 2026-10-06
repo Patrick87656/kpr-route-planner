@@ -19,8 +19,9 @@ KPR.app = (function () {
     return mode;
   }
 
-  /** Modes: "waypoint" and "scene" (planner), or "drive" (Drive mode, where
-   * map clicks don't add stops or scenes). */
+  /** Modes: "waypoint" and "scene" (planner), "drive" (Drive mode) or
+   * "results" (read-only results view); in the last two, map clicks don't
+   * add stops or scenes. */
   function _setMode(newMode) {
     mode = newMode;
     document.querySelectorAll(".mode-btn").forEach((btn) => {
@@ -255,6 +256,7 @@ KPR.app = (function () {
     KPR.evaluation.init();
     KPR.search.init();
     KPR.drive.init();
+    KPR.results.init();
     KPR.sheet.init();
 
     _wireModeButtons();
@@ -264,6 +266,9 @@ KPR.app = (function () {
     // Last: if the page was opened from a share link (#r=...), load it now
     // that everything it touches is wired up.
     KPR.share.loadFromHash();
+    // A results link (#res=...) is a different hash, so only one of the two
+    // loaders ever acts on a given address.
+    KPR.results.loadFromHash();
   }
 
   return { init, getMode, setMode: _setMode, refreshLists };

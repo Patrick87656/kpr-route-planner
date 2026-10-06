@@ -103,6 +103,8 @@ KPR.waypoints = (function () {
 
     marker.getElement().addEventListener("contextmenu", (e) => {
       e.preventDefault();
+      // Results mode is read-only: right-click must not remove a stop.
+      if (KPR.app.getMode() === "results") return;
       removeWaypoint(id);
     });
 

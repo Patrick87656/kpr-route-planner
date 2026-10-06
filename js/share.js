@@ -338,6 +338,10 @@ KPR.share = (function () {
         return;
       }
 
+      // Opening a route while a results view is showing: leave results mode
+      // first (keeping what is on the map; applyRoute replaces it next).
+      if (KPR.results && KPR.results.isActive()) KPR.results.exit({ keepRoute: true });
+
       applied = true;
       const result = await KPR.storage.applyRoute(route);
       if (!result.ok) {
