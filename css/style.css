@@ -1426,6 +1426,52 @@ body.driving .mapboxgl-ctrl-bottom-left { left: 420px; }
 .arrived-actions { margin-top: 18px; }
 .arrived-actions .primary-btn { width: 100%; padding: 12px; background: var(--nav-blue); }
 
+/* Send results (beta). The arrival card and the early-exit prompt get a
+   primary "Send" button; "End drive" / "Not now" step back to a quiet
+   secondary look only while a Send button is showing. */
+#arrived-send,
+#exit-send,
+#exit-skip { min-height: 48px; }
+#arrived-send:not(.hidden) ~ #arrived-done,
+#arrived-send-status:not(.hidden) ~ #arrived-done,
+#exit-send ~ #exit-skip,
+#exit-send-status:not(.hidden) ~ #exit-skip { margin-top: 10px; }
+.arrived-actions .arrived-secondary {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  color: #fff;
+}
+.arrived-actions .hint { color: var(--text-muted); }
+
+/* Planner card: "Last drive results" (beta). Shown on all screen sizes. */
+#last-results .lr-summary {
+  padding: 10px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  font-size: 13px;
+  line-height: 1.5;
+}
+#last-results .lr-vehicle { font-weight: 700; }
+#last-results .lr-route,
+#last-results .lr-date,
+#last-results .lr-counts { color: var(--text-muted); overflow-wrap: anywhere; }
+#last-results .lr-test {
+  margin-left: 8px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--accent-soft);
+  color: var(--text);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+#last-results .lr-actions { display: flex; gap: 10px; margin-top: 10px; }
+#last-results .lr-actions button { flex: 1; min-height: 48px; }
+
+/* Send dialog: the link field reuses the share dialog look. */
+#send-link { text-overflow: ellipsis; }
+
 /* --- vehicle marker ---------------------------------------------------- */
 
 .drive-puck { width: 48px; height: 48px; filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.6)); }

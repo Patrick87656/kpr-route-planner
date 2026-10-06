@@ -49,6 +49,22 @@
       <p id="eval-vehicles-hint" class="hint"></p>
       <button id="eval-use-last" type="button">Use my last list</button>
     </details>
+    <!-- Send results: the fallback dialog and the planner's Last drive results card. -->
+    <div id="send-dialog" class="dialog hidden">
+      <div class="dialog-box share-box">
+        <label for="send-link">Link <input id="send-link" type="text" readonly></label>
+        <p id="send-long-hint" class="hint hidden"></p>
+        <p id="send-status" class="hint" role="status"></p>
+        <button id="send-close" type="button">Close</button>
+        <button id="send-copy" type="button">Copy link</button>
+      </div>
+    </div>
+    <section id="last-results" class="block hidden">
+      <div id="last-results-summary"></div>
+      <p id="last-results-status" class="hint hidden" role="status"></p>
+      <button id="last-results-send" type="button">Send results</button>
+      <button id="last-results-delete" type="button">Delete</button>
+    </section>
     <div id="vehicle-dialog" class="dialog hidden">
       <div class="dialog-box">
         <p id="vehicle-dialog-route" class="hint"></p>
@@ -82,5 +98,6 @@
   <script src="ratings.test.js"></script>
   <script src="scene-badge.test.js"></script>
   <script src="evaluation.test.js"></script>
+  <script src="send-results.test.js"></script>
 </body>
 </html>

@@ -106,7 +106,7 @@ KPR.evaluation = (function () {
 
   /** Show the Evaluation setup section (only when the beta switch is on) and
    * wire its controls. */
-  function init() {
+  function _initSetup() {
     const section = $("eval-setup");
     const box = $("eval-vehicles");
     if (!section || !box) return;
@@ -240,13 +240,317 @@ KPR.evaluation = (function () {
     return true;
   }
 
+  // ---------------------------------------------------------------------
+  // Send results
+  // ---------------------------------------------------------------------
+  //
+  // A finished drive is sent as a #res= link through the device share sheet
+  // (Teams, Outlook, AirDrop...), or copied when there is no share sheet.
+  // iOS only allows navigator.share straight from a tap, and building the link
+  // is async, so the link is built ahead of time (prepareLink) and sendResults
+  // calls navigator.share with nothing awaited before it when it is ready.
+
+  const SHARE_TEXT = "KPR evaluation results. Open on a PC to see the route and ratings.";
+  const TITLE_PART_MAX = 80;
+
+  let linkCache = null; // {key, result:{link, length}} for the latest session
+  let linkPending = null; // {key, promise} while a build is running
+  let sending = null; // promise of the send in progress (a second share() would throw)
+  let sendWired = false;
+  let sendState = null; // {lastFocus} while the send dialog is open
+
+  /** What the link depends on. Same key = same link. */
+  function _linkKey(session) {
+    return [
+      session.id,
+      KPR.ratings.buildG(session),
+      session.vehicle || "",
+      session.evaluator || "",
+      session.simulated ? 1 : 0,
+    ].join("|");
+  }
+
+  /**
+   * Build (or reuse) the results link for `session`. Resolves to
+   * {link, length}; rejects with the codec's LinkError. The latest result is
+   * kept, so calling this when a card is shown makes the next tap instant.
+   */
+  function prepareLink(session) {
+    const key = _linkKey(session);
+    if (linkCache && linkCache.key === key) return Promise.resolve(linkCache.result);
+    if (linkPending && linkPending.key === key) return linkPending.promise;
+    const promise = KPR.codec.encodeResults(session).then((encoded) => {
+      const link = KPR.codec.buildResultsLink(encoded);
+      const result = { link, length: link.length };
+      if (linkPending && linkPending.key === key) linkPending = null;
+      linkCache = { key, result };
+      return result;
+    });
+    linkPending = { key, promise };
+    promise.catch(() => {
+      if (linkPending && linkPending.promise === promise) linkPending = null;
+    });
+    return promise;
+  }
+
+  /** Text for the title line of the share: "KPR results - <vehicle> - <route>". */
+  function _shareTitle(session) {
+    const parts = ["KPR results"];
+    const veh = String(session.vehicle || "").trim().slice(0, TITLE_PART_MAX);
+    if (veh) parts.push(veh);
+    const route = String(session.routeName || "").trim().slice(0, TITLE_PART_MAX);
+    parts.push(route || "Untitled route");
+    return parts.join(" - ");
+  }
+
+  function _linkError(err) {
+    const code = err && err.code;
+    return code === "too-big" || code === "too-long"
+      ? "These results are too big to send as a link."
+      : "Could not build the results link.";
+  }
+
+  /** Show `message` plus the link length (and the long-link hint when
+   * needed) in a status element. */
+  function _writeStatus(el, message, length) {
+    if (!el) return;
+    const parts = [message];
+    if (typeof length === "number") {
+      parts.push(`Link length: ${length} characters.`);
+      if (length > KPR.share.LONG_LINK_CHARS) parts.push(KPR.share.longLinkHint);
+    }
+    el.textContent = parts.filter(Boolean).join(" ");
+    el.classList.remove("hidden");
+  }
+
+  // ---- send dialog (fallback when sharing/copying is not possible) ----
+
+  function _closeSendDialog() {
+    if (!sendState) return;
+    const { lastFocus } = sendState;
+    sendState = null;
+    $("send-dialog").classList.add("hidden");
+    if (lastFocus && typeof lastFocus.focus === "function") lastFocus.focus();
+  }
+
+  function _trapSendTab(e) {
+    const items = Array.from($("send-dialog").querySelectorAll("input, button"))
+      .filter((el) => !el.disabled && el.getClientRects().length > 0);
+    if (items.length === 0) return;
+    const first = items[0];
+    const last = items[items.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  }
+
+  function _selectSendLink() {
+    const field = $("send-link");
+    field.focus();
+    field.select();
+    field.setSelectionRange(0, field.value.length);
+  }
+
+  async function _copyFromDialog() {
+    const link = $("send-link").value;
+    if (!link) return;
+    const copied = await KPR.share.copyText(link);
+    if (copied) {
+      _writeStatus($("send-status"), "Link copied. Paste it into Teams or an email.", link.length);
+    } else {
+      _selectSendLink();
+      _writeStatus($("send-status"), "Press and hold the link to copy it.", link.length);
+    }
+  }
+
+  function _wireSendDialog() {
+    if (sendWired) return;
+    sendWired = true;
+    $("send-close").addEventListener("click", _closeSendDialog);
+    $("send-copy").addEventListener("click", _copyFromDialog);
+    $("send-dialog").addEventListener("click", (e) => {
+      if (e.target === $("send-dialog")) _closeSendDialog(); // backdrop, not the box
+    });
+    document.addEventListener("keydown", (e) => {
+      if (!sendState) return;
+      if (e.key === "Escape") _closeSendDialog();
+      else if (e.key === "Tab") _trapSendTab(e);
+    });
+  }
+
+  function isSendDialogOpen() {
+    return sendState !== null;
+  }
+
+  /** Show the link in the dialog so it can be copied by hand. */
+  function _openSendDialog(result, message) {
+    _wireSendDialog();
+    if (!sendState) sendState = { lastFocus: document.activeElement };
+    $("send-link").value = result.link;
+    const hint = $("send-long-hint");
+    if (result.length > KPR.share.LONG_LINK_CHARS) {
+      hint.textContent = KPR.share.longLinkHint;
+      hint.classList.remove("hidden");
+    } else {
+      hint.textContent = "";
+      hint.classList.add("hidden");
+    }
+    _writeStatus($("send-status"), message, result.length);
+    $("send-dialog").classList.remove("hidden");
+    _selectSendLink();
+  }
+
+  /** Share or copy an already-built link. Everything up to navigator.share
+   * is synchronous, so a warm tap keeps its user activation. */
+  function _deliver(result, session, statusEl) {
+    _writeStatus(statusEl, "", result.length);
+    if (typeof navigator.share === "function") {
+      let shared;
+      try {
+        shared = Promise.resolve(
+          navigator.share({ title: _shareTitle(session), text: SHARE_TEXT, url: result.link })
+        );
+      } catch (err) {
+        shared = Promise.reject(err);
+      }
+      return shared.then(
+        () => undefined,
+        (err) => {
+          if (err && err.name === "AbortError") return; // the user closed the sheet
+          _openSendDialog(result, "Could not open the share sheet. Copy the link below.");
+        }
+      );
+    }
+    return KPR.share.copyText(result.link).then((copied) => {
+      if (copied) {
+        _writeStatus(statusEl, "Link copied. Paste it into Teams or an email.", result.length);
+      } else {
+        _openSendDialog(result, "Press and hold the link to copy it.");
+      }
+    });
+  }
+
+  /**
+   * Send the results of `session` (a fresh copy from KPR.ratings) through the
+   * share sheet, else the clipboard, else a dialog. `statusEl` gets the
+   * outcome. Call this straight from the tap handler. Returns a promise that
+   * settles when the attempt is over (never rejects).
+   */
+  function sendResults(session, statusEl) {
+    if (sending) return sending; // a second tap joins the attempt in progress
+    if (!session) return Promise.resolve();
+    const key = _linkKey(session);
+    const done = () => {
+      sending = null;
+    };
+    let p;
+    if (linkCache && linkCache.key === key) {
+      // Warm: nothing is awaited before navigator.share.
+      p = _deliver(linkCache.result, session, statusEl);
+    } else {
+      _writeStatus(statusEl, "Preparing the link...");
+      p = prepareLink(session).then(
+        (result) => _deliver(result, session, statusEl),
+        (err) => _writeStatus(statusEl, _linkError(err))
+      );
+    }
+    sending = p.then(done, done);
+    return sending;
+  }
+
+  // ---- planner card: "Last drive results" ----
+
+  /** Fill `containerEl` with a short summary of a stored session. Pure DOM
+   * building; every string goes in through textContent. */
+  function renderLastResults(containerEl, session) {
+    containerEl.replaceChildren();
+    const add = (cls, text) => {
+      const d = document.createElement("div");
+      d.className = cls;
+      d.textContent = text;
+      containerEl.appendChild(d);
+      return d;
+    };
+    const head = add("lr-vehicle", session.vehicle || "No vehicle");
+    if (session.simulated) {
+      const tag = document.createElement("span");
+      tag.className = "lr-test";
+      tag.textContent = "TEST";
+      head.appendChild(tag);
+    }
+    add("lr-route", session.routeName || "Untitled route");
+    add("lr-date", new Date(session.startedAt).toLocaleString());
+    const c = KPR.ratings.countRatings(session);
+    add("lr-counts", `${c.good} good, ${c.bad} bad, ${c.notRated} not rated`);
+  }
+
+  function _lastSession() {
+    return KPR.beta.isOn() ? KPR.ratings.lastNonEmpty() : null;
+  }
+
+  /** Show or hide the planner card for the newest stored drive with ratings,
+   * and build its link ahead of the tap. */
+  function refreshLastResults() {
+    const card = $("last-results");
+    if (!card) return;
+    const status = $("last-results-status");
+    if (status) {
+      status.textContent = "";
+      status.classList.add("hidden");
+    }
+    const s = _lastSession();
+    if (!s) {
+      card.classList.add("hidden");
+      return;
+    }
+    renderLastResults($("last-results-summary"), s);
+    card.classList.remove("hidden");
+    prepareLink(s).catch(() => {});
+  }
+
+  function _onLastSend() {
+    const s = _lastSession();
+    if (s) sendResults(s, $("last-results-status"));
+  }
+
+  function _onLastDelete() {
+    const s = _lastSession();
+    if (!s) return;
+    if (!confirm("Delete these results from this device?")) return;
+    KPR.ratings.deleteSession(s.id);
+    refreshLastResults();
+  }
+
+  let lastWired = false;
+  function _initLastResults() {
+    if (!$("last-results")) return;
+    if (!lastWired) {
+      lastWired = true;
+      $("last-results-send").addEventListener("click", _onLastSend);
+      $("last-results-delete").addEventListener("click", _onLastDelete);
+    }
+    refreshLastResults();
+  }
+
   return {
-    init,
+    init() {
+      _initSetup();
+      _initLastResults();
+    },
     getVehicles,
     setVehicles,
     useLastList,
     renderVehicleOptions,
     openVehicleDialog,
     isVehicleDialogOpen,
+    prepareLink,
+    sendResults,
+    isSendDialogOpen,
+    renderLastResults,
+    refreshLastResults,
   };
 })();

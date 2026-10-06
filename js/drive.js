@@ -398,7 +398,12 @@ KPR.drive = (function () {
     _clearResume();
     document.getElementById("drive-recenter-pill").classList.add("hidden");
     _releaseWakeLock();
-    if (betaOn) _endEvaluation();
+    if (betaOn) {
+      _endEvaluation();
+      // The drive just saved is now the newest stored one: show it in the
+      // planner's "Last drive results" card.
+      KPR.evaluation.refreshLastResults();
+    }
     if (window.speechSynthesis) window.speechSynthesis.cancel();
     if (puck) {
       puck.remove();
@@ -478,6 +483,7 @@ KPR.drive = (function () {
     if (ratingOn) scenes.forEach((s) => KPR.scenes.setRatingBadge(s.scene.id, null));
     if (session) KPR.ratings.endSession(session.id);
     _hideRate();
+    _hideSendUi();
     graceCardShown = false;
     document.getElementById("drive-vehicle").classList.add("hidden");
     session = null;
@@ -485,6 +491,82 @@ KPR.drive = (function () {
     betaOn = false;
     rateState = {};
     rated = new Map();
+  }
+
+  // ---- sending results (beta) -------------------------------------------
+
+  /** The stored copy of this drive's session (the one in `session` is only the
+   * snapshot from when the drive began), or null. */
+  function _freshSession() {
+    return session ? KPR.ratings.getSession(session.id) : null;
+  }
+
+  /** The stored session when it has at least one rating, else null. */
+  function _ratedSession() {
+    if (!ratingOn) return null;
+    const s = _freshSession();
+    return s && KPR.ratings.countRatings(s).rated >= 1 ? s : null;
+  }
+
+  /** Build the link ahead of the tap (see KPR.evaluation.sendResults). */
+  function _prewarmLink() {
+    const s = _ratedSession();
+    if (s) KPR.evaluation.prepareLink(s).catch(() => {});
+  }
+
+  function _setArrivedSendUi() {
+    const show = arrived && _ratedSession() !== null;
+    document.getElementById("arrived-send").classList.toggle("hidden", !show);
+    document.getElementById("arrived-done").classList.toggle("arrived-secondary", show);
+    if (!show) document.getElementById("arrived-send-status").classList.add("hidden");
+    if (show) _prewarmLink();
+  }
+
+  function _hideSendUi() {
+    document.getElementById("arrived-send").classList.add("hidden");
+    document.getElementById("arrived-done").classList.remove("arrived-secondary");
+    const st = document.getElementById("arrived-send-status");
+    st.textContent = "";
+    st.classList.add("hidden");
+    _hideExitPrompt();
+  }
+
+  function _hideExitPrompt() {
+    document.getElementById("drive-exit-prompt").classList.add("hidden");
+    const st = document.getElementById("exit-send-status");
+    st.textContent = "";
+    st.classList.add("hidden");
+  }
+
+  /** The × button. With the beta on and at least one rating (and the drive
+   * not yet finished) it asks about sending first; every other case ends the
+   * drive straight away, as it always did. */
+  function requestExit() {
+    if (!active) return;
+    if (!arrived && _ratedSession()) {
+      document.getElementById("drive-exit-prompt").classList.remove("hidden");
+      _prewarmLink();
+      document.getElementById("exit-send").focus();
+      return;
+    }
+    stop();
+  }
+
+  // Tap handlers: sendResults runs synchronously up to navigator.share.
+  function _onArrivedSend() {
+    const s = _ratedSession();
+    if (s) KPR.evaluation.sendResults(s, document.getElementById("arrived-send-status"));
+  }
+
+  function _onExitSend() {
+    const s = _ratedSession();
+    if (!s) {
+      stop();
+      return;
+    }
+    KPR.evaluation.sendResults(s, document.getElementById("exit-send-status")).then(() => {
+      if (active) stop();
+    });
   }
 
   function _hideRate() {
@@ -595,6 +677,9 @@ KPR.drive = (function () {
     if (res.ok || res.reason === "not-saved") {
       rated.set(rateIndex, rating);
       KPR.scenes.setRatingBadge(entry.scene.id, rating);
+      // The stored session changed, so the link built earlier is stale.
+      _prewarmLink();
+      if (arrived) _setArrivedSendUi();
     }
     rateSaveFailed = !res.ok;
     _reflectRating();
@@ -670,6 +755,7 @@ KPR.drive = (function () {
       offRouteCount = 0;
       announced = new Set();
       document.getElementById("drive-arrived").classList.add("hidden");
+      if (ratingOn) _hideSendUi();
       document.getElementById("drive-offroute").classList.add("hidden");
       simAlong = 0;
       // Back at the start: a scene left at the end of the last run is not
@@ -778,6 +864,10 @@ KPR.drive = (function () {
       _stopSim();
       document.getElementById("drive-arrived").classList.remove("hidden");
       document.getElementById("arrived-name").textContent = destName;
+      if (ratingOn) {
+        _hideExitPrompt();
+        _setArrivedSendUi();
+      }
       _say(`You have arrived at ${destName}.`);
     }
   }
@@ -1100,8 +1190,11 @@ KPR.drive = (function () {
 
   function init() {
     document.getElementById("start-drive").addEventListener("click", start);
-    document.getElementById("drive-exit").addEventListener("click", stop);
+    document.getElementById("drive-exit").addEventListener("click", requestExit);
     document.getElementById("arrived-done").addEventListener("click", stop);
+    document.getElementById("arrived-send").addEventListener("click", _onArrivedSend);
+    document.getElementById("exit-send").addEventListener("click", _onExitSend);
+    document.getElementById("exit-skip").addEventListener("click", stop);
     document.getElementById("drive-sim").addEventListener("click", toggleSim);
     document.getElementById("drive-sim-speed").addEventListener("click", cycleSimSpeed);
     document.getElementById("drive-recenter").addEventListener("click", () => setFollow(true));

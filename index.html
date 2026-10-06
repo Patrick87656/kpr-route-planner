@@ -100,6 +100,19 @@
         <ul id="scene-legend" class="legend-list"></ul>
       </section>
 
+      <!-- Last drive results (beta): the newest stored drive with ratings, so it
+           can be sent from this device. Shown on phones too. Filled in by
+           js/evaluation.js. -->
+      <section id="last-results" class="block hidden">
+        <h2 class="legend-heading">Last drive results</h2>
+        <div id="last-results-summary" class="lr-summary"></div>
+        <p id="last-results-status" class="hint hidden" role="status" aria-live="polite"></p>
+        <div class="lr-actions">
+          <button id="last-results-send" class="primary-btn" type="button">Send results</button>
+          <button id="last-results-delete" class="secondary-btn" type="button">Delete</button>
+        </div>
+      </section>
+
       <!-- Evaluation setup: only shown with ?beta=1 (see js/beta.js) and not
            on phone-sized screens. The vehicle list travels with the route. -->
       <details id="eval-setup" class="block hidden">
@@ -243,7 +256,20 @@
       <div class="arrived-title">You've arrived</div>
       <div id="arrived-name" class="arrived-name"></div>
       <div class="arrived-actions">
+        <button id="arrived-send" class="primary-btn hidden" type="button">Send results</button>
+        <p id="arrived-send-status" class="hint hidden" role="status"></p>
         <button id="arrived-done" class="primary-btn">End drive</button>
+      </div>
+    </div>
+
+    <!-- Early exit with at least one rating (beta): offer to send first. -->
+    <div id="drive-exit-prompt" class="arrived-card exit-prompt hidden" role="dialog" aria-labelledby="exit-prompt-title">
+      <div id="exit-prompt-title" class="arrived-title">Send results now?</div>
+      <div class="arrived-name">You rated scenes on this drive.</div>
+      <div class="arrived-actions">
+        <button id="exit-send" class="primary-btn" type="button">Send</button>
+        <p id="exit-send-status" class="hint hidden" role="status"></p>
+        <button id="exit-skip" class="primary-btn arrived-secondary" type="button">Not now</button>
       </div>
     </div>
   </div>
@@ -329,6 +355,23 @@
       <div class="button-row">
         <button id="vehicle-cancel" class="secondary-btn" type="button">Cancel</button>
         <button id="vehicle-start" class="primary-btn" type="button" disabled>Start</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Send results: shown when the device can't share or copy the results
+       link by itself. Filled in by js/evaluation.js. -->
+  <div id="send-dialog" class="dialog hidden">
+    <div class="dialog-box share-box" role="dialog" aria-modal="true" aria-labelledby="send-title">
+      <h3 id="send-title">Send results</h3>
+      <label for="send-link">Link
+        <input id="send-link" type="text" readonly>
+      </label>
+      <p id="send-long-hint" class="hint hidden"></p>
+      <p id="send-status" class="hint" role="status" aria-live="polite"></p>
+      <div class="button-row">
+        <button id="send-close" class="secondary-btn" type="button">Close</button>
+        <button id="send-copy" class="primary-btn" type="button">Copy link</button>
       </div>
     </div>
   </div>
