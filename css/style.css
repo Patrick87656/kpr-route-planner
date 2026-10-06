@@ -200,6 +200,47 @@ h2 .count { font-weight: 600; letter-spacing: 0; }
   color: var(--text-faint);
 }
 
+/* Evaluation setup (beta): the vehicle list that travels with the route.
+   Un-hidden by js/evaluation.js only when the beta switch is on, and hidden
+   again on phone-sized screens (see the max-width:700px block). */
+#eval-setup summary {
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+#eval-setup summary:hover { color: var(--text-muted); }
+#eval-setup[open] summary { margin-bottom: 10px; }
+#eval-setup .eval-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+#eval-vehicles {
+  display: block;
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.4;
+  resize: vertical;
+}
+#eval-vehicles:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+#eval-use-last { margin-top: 10px; }
+
 #panel-footer {
   display: grid;
   /* Save | Share | Load on one row; Start drive spans all three. */
@@ -955,6 +996,9 @@ body.driving .mapboxgl-user-location-accuracy-circle { display: none !important;
      iPads, which are wider than this breakpoint, keep all three buttons.
      Opening a shared link still works on a phone; only sending is hidden.) */
   #panel-footer #share-route { display: none; }
+  /* Same for the vehicle list editor: it is set up on the PC. The list still
+     loads with a route, so Start drive on the phone offers it. */
+  #eval-setup { display: none; }
   #panel-footer { grid-template-columns: repeat(2, 1fr); }
   .drive-btn { padding: 15px 14px; font-size: 15px; }
   .secondary-btn,
@@ -1192,6 +1236,58 @@ body.driving .mapboxgl-ctrl-bottom-left { left: 420px; }
 .scene-alert-label { margin-top: 4px; font-size: 18px; font-weight: 700; }
 .scene-alert-notes { margin-top: 6px; font-size: 13.5px; line-height: 1.45; color: #c9ccd2; white-space: pre-wrap; }
 
+/* --- scene rating (beta): Good / Bad buttons inside the alert ------------
+   They live inside the alert card, so they inherit its placement (docked
+   under the turn card on phones). Selected = filled + white ring + a check
+   mark, so it never relies on color alone. */
+
+.scene-rate { display: flex; gap: 10px; margin-top: 12px; }
+.rate-btn {
+  flex: 1;
+  min-height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 2px solid currentColor;
+  border-radius: 14px;
+  background: transparent;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 700;
+}
+.rate-btn svg { width: 28px; height: 28px; flex-shrink: 0; }
+.rate-btn.good { border-color: #16a34a; }
+.rate-btn.bad { border-color: #dc2626; }
+.rate-btn.good svg { color: #4ade80; }
+.rate-btn.bad svg { color: #f87171; }
+.rate-btn[aria-pressed="true"] { box-shadow: 0 0 0 3px #fff; }
+.rate-btn.good[aria-pressed="true"] { background: #16a34a; }
+.rate-btn.bad[aria-pressed="true"] { background: #dc2626; }
+.rate-btn[aria-pressed="true"] svg { color: #fff; }
+.rate-btn[aria-pressed="true"]::after { content: "\2713"; font-size: 18px; font-weight: 800; }
+.scene-rate-status { margin: 8px 0 0; font-size: 12.5px; color: var(--text-muted); }
+
+/* --- vehicle label (beta) ---------------------------------------------- */
+
+.drive-vehicle {
+  position: absolute;
+  left: 88px;
+  top: calc(var(--mv-bottom, 132px) + 8px);
+  max-width: 300px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: rgba(24, 25, 28, 0.92);
+  color: #eceef1;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+}
+
 /* --- re-center (shown only while follow is paused) --------------------- */
 
 .recenter-pill {
@@ -1408,6 +1504,20 @@ body.driving .mapboxgl-ctrl-bottom-left { left: 420px; }
   }
   .recenter-pill { bottom: calc(206px + var(--safe-bottom)); }
   body.driving .mapboxgl-ctrl-bottom-left { left: auto; right: 12px; bottom: calc(192px + var(--safe-bottom)); }
+
+  /* Rating buttons and the vehicle label (beta). Smaller buttons and a
+     2-line note keep the docked alert short enough to clear the zoom pill
+     and the GPS cluster. The label sits in the free strip above the ETA
+     card (--eta-h is published by drive.js). */
+  .rate-btn { min-height: 56px; }
+  .scene-rate { margin-top: 8px; }
+  .scene-alert.has-rate .scene-alert-notes { -webkit-line-clamp: 2; }
+  .drive-vehicle {
+    left: calc(12px + var(--safe-left));
+    top: auto;
+    bottom: calc(var(--eta-h, 140px) + 20px + var(--safe-bottom));
+    max-width: calc(100vw - 150px);
+  }
 }
 
 /* Landscape phones / small screens with little height (e.g. an iPhone

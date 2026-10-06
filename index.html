@@ -100,6 +100,16 @@
         <ul id="scene-legend" class="legend-list"></ul>
       </section>
 
+      <!-- Evaluation setup: only shown with ?beta=1 (see js/beta.js) and not
+           on phone-sized screens. The vehicle list travels with the route. -->
+      <details id="eval-setup" class="block hidden">
+        <summary>Evaluation setup</summary>
+        <label for="eval-vehicles" class="eval-label">Vehicles</label>
+        <textarea id="eval-vehicles" rows="5" spellcheck="false" placeholder="Example Sedan A&#10;Example SUV B"></textarea>
+        <p id="eval-vehicles-hint" class="hint">One vehicle per line. Evaluators pick theirs from this list when they start a drive.</p>
+        <button id="eval-use-last" class="secondary-btn" type="button">Use my last list</button>
+      </details>
+
     </div>
 
     <footer id="panel-footer">
@@ -176,7 +186,21 @@
       </div>
       <div id="scene-alert-label" class="scene-alert-label"></div>
       <div id="scene-alert-notes" class="scene-alert-notes"></div>
+      <!-- Good / Bad for this scene (only shown with ?beta=1; see drive.js). -->
+      <div id="scene-rate" class="scene-rate hidden">
+        <button id="rate-good" class="rate-btn good" type="button" aria-pressed="false" aria-label="Rate this scene good">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
+          <span>Good</span>
+        </button>
+        <button id="rate-bad" class="rate-btn bad" type="button" aria-pressed="false" aria-label="Rate this scene bad">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"/></svg>
+          <span>Bad</span>
+        </button>
+      </div>
+      <p id="scene-rate-status" class="scene-rate-status hidden" role="status" aria-live="polite"></p>
     </div>
+
+    <div id="drive-vehicle" class="drive-vehicle hidden"></div>
 
     <button id="drive-recenter-pill" class="recenter-pill hidden" title="Follow my position again">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 17-7-4-7 4z" fill="currentColor"/></svg>
@@ -288,6 +312,27 @@
     </div>
   </div>
 
+  <!-- Vehicle picker: shown by Start drive (with ?beta=1) when the route has
+       a vehicle list. Filled in by js/evaluation.js. -->
+  <div id="vehicle-dialog" class="dialog hidden">
+    <div class="dialog-box" role="dialog" aria-modal="true" aria-labelledby="vehicle-title">
+      <h3 id="vehicle-title">Which vehicle are you in?</h3>
+      <p id="vehicle-dialog-route" class="hint vehicle-route"></p>
+      <label for="vehicle-select">Vehicle
+        <select id="vehicle-select">
+          <option value="" disabled selected>Select vehicle</option>
+        </select>
+      </label>
+      <label for="evaluator-name">Evaluator
+        <input id="evaluator-name" type="text" maxlength="60" placeholder="Your name (optional)" autocomplete="off">
+      </label>
+      <div class="button-row">
+        <button id="vehicle-cancel" class="secondary-btn" type="button">Cancel</button>
+        <button id="vehicle-start" class="primary-btn" type="button" disabled>Start</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Local-only, gitignored config holding the Mapbox token as
        window.KPR_MAPBOX_TOKEN. See config.local.js.example. Must load before
        mapbox-gl.js below. -->
@@ -309,6 +354,7 @@
   <script src="js/search.js"></script>
   <script src="js/storage.js"></script>
   <script src="js/share.js"></script>
+  <script src="js/evaluation.js"></script>
   <script src="js/drive.js"></script>
   <script src="js/sheet.js"></script>
   <script src="js/app.js"></script>

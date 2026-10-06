@@ -21,6 +21,10 @@ KPR.share = (function () {
   const QR_MAX_PX = 2048;
   const QR_QUIET_ZONE = 4; // modules of white border the QR spec asks for
   const LONG_LINK_CHARS = 2000;
+  // Shown under a link longer than LONG_LINK_CHARS (also exported, so other
+  // dialogs that show a link can say the same thing).
+  const LONG_LINK_HINT =
+    "Some chat apps may cut long links. If this one gets cut, use Save and send the file instead.";
 
   const BAD_LINK_MSG = "That link doesn't look like a KPR route. Ask the sender to share it again.";
   const UNSUPPORTED_MSG =
@@ -115,6 +119,8 @@ KPR.share = (function () {
       name: _routeName(),
       waypoints: KPR.waypoints.getSaveData(),
       scenes: KPR.scenes.getSaveData(),
+      // The planner's vehicle list travels with the route (absent when empty).
+      vehicles: KPR.evaluation.getVehicles(),
     };
 
     let link;
@@ -143,8 +149,7 @@ KPR.share = (function () {
 
     if (link.length > LONG_LINK_CHARS) {
       const hint = $("share-long-hint");
-      hint.textContent =
-        "Some chat apps may cut long links. If this one gets cut, use Save and send the file instead.";
+      hint.textContent = LONG_LINK_HINT;
       hint.classList.remove("hidden");
     }
     if (typeof navigator.share === "function") $("share-send").classList.remove("hidden");
@@ -183,20 +188,27 @@ KPR.share = (function () {
     return ok;
   }
 
-  async function _copyLink() {
-    const field = $("share-link");
-    const link = field.value;
-    if (!link) return;
+  /** Copy `text` to the clipboard: the async clipboard API where the page
+   * allows it, else the legacy fallback. Resolves true when it worked. */
+  async function copyText(text) {
     let copied = false;
     if (navigator.clipboard && typeof navigator.clipboard.writeText === "function" && window.isSecureContext) {
       try {
-        await navigator.clipboard.writeText(link);
+        await navigator.clipboard.writeText(text);
         copied = true;
       } catch (err) {
         copied = false;
       }
     }
-    if (!copied) copied = _legacyCopy(link);
+    if (!copied) copied = _legacyCopy(text);
+    return copied;
+  }
+
+  async function _copyLink() {
+    const field = $("share-link");
+    const link = field.value;
+    if (!link) return;
+    const copied = await copyText(link);
     if (copied) {
       _setStatus("Link copied", 2500);
     } else {
@@ -346,5 +358,15 @@ KPR.share = (function () {
     }
   }
 
-  return { init, syncButton, loadFromHash, buildQr, drawQr };
+  return {
+    init,
+    syncButton,
+    loadFromHash,
+    buildQr,
+    drawQr,
+    clearHash: _clearHash,
+    copyText,
+    LONG_LINK_CHARS,
+    longLinkHint: LONG_LINK_HINT,
+  };
 })();

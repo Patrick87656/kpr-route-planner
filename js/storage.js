@@ -77,6 +77,7 @@ KPR.storage = (function () {
       scenes: KPR.scenes.getSaveData(),
       routeCoords: KPR.routing.getRouteCoords() || [],
       routeSummary: KPR.routing.getSummary(),
+      vehicles: KPR.evaluation.getVehicles(),
     });
 
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
@@ -95,7 +96,7 @@ KPR.storage = (function () {
     Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180;
 
   /**
-   * Turn parsed file data (format v1 or v2) into a clean
+   * Turn parsed file data (format v1, v2 or v3) into a clean
    * {name, waypoints, scenes} that is safe to hand to applyRoute. Throws an
    * Error with a user-facing message if it isn't a KPR route at all. Bad
    * stops and scenes are dropped rather than failing the whole load.
@@ -148,6 +149,9 @@ KPR.storage = (function () {
    */
   async function applyRoute(route) {
     document.getElementById("route-name").value = route.name || "Untitled route";
+    // The vehicle list belongs to the route: a route without one clears the
+    // box (it must not keep the previous route's vehicles).
+    KPR.evaluation.setVehicles(route.vehicles || []);
     // quiet: don't recalculate once per stop; we do it once below.
     KPR.waypoints.loadFrom(route.waypoints, { quiet: true });
     await KPR.routing.recalculate();

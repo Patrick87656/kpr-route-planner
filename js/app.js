@@ -236,6 +236,9 @@ KPR.app = (function () {
   }
 
   function init() {
+    // First, so a link opened as ?beta=1#r=... has the switch set before
+    // anything below looks at it.
+    KPR.beta.initFromUrl();
     KPR.map.init();
     KPR.waypoints.init((info) => {
       _refreshWaypointList();
@@ -249,6 +252,7 @@ KPR.app = (function () {
     });
     KPR.storage.init();
     KPR.share.init();
+    KPR.evaluation.init();
     KPR.search.init();
     KPR.drive.init();
     KPR.sheet.init();

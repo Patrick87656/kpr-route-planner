@@ -41,6 +41,23 @@
         <button id="share-copy" type="button">Copy link</button>
       </div>
     </div>
+
+    <!-- Evaluation setup (planner) and the vehicle picker dialog, same ids as index.html. -->
+    <details id="eval-setup" class="block hidden">
+      <summary>Evaluation setup</summary>
+      <textarea id="eval-vehicles" rows="5"></textarea>
+      <p id="eval-vehicles-hint" class="hint"></p>
+      <button id="eval-use-last" type="button">Use my last list</button>
+    </details>
+    <div id="vehicle-dialog" class="dialog hidden">
+      <div class="dialog-box">
+        <p id="vehicle-dialog-route" class="hint"></p>
+        <select id="vehicle-select"><option value="" disabled selected>Select vehicle</option></select>
+        <input id="evaluator-name" type="text" maxlength="60">
+        <button id="vehicle-cancel" type="button">Cancel</button>
+        <button id="vehicle-start" type="button" disabled>Start</button>
+      </div>
+    </div>
   </div>
 
   <script src="harness.js"></script>
@@ -50,6 +67,7 @@
   <script src="../js/route-codec.js"></script>
   <script src="../js/beta.js"></script>
   <script src="../js/ratings.js"></script>
+  <script src="../js/evaluation.js"></script>
   <script src="../js/storage.js"></script>
   <script src="../js/share.js"></script>
   <script src="../js/app.js"></script>
@@ -63,5 +81,6 @@
   <script src="results-codec.test.js"></script>
   <script src="ratings.test.js"></script>
   <script src="scene-badge.test.js"></script>
+  <script src="evaluation.test.js"></script>
 </body>
 </html>
