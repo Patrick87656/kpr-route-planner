@@ -200,6 +200,47 @@ h2 .count { font-weight: 600; letter-spacing: 0; }
   color: var(--text-faint);
 }
 
+/* Evaluation setup (beta): the vehicle list that travels with the route.
+   Un-hidden by js/evaluation.js only when the beta switch is on, and hidden
+   again on phone-sized screens (see the max-width:700px block). */
+#eval-setup summary {
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+#eval-setup summary:hover { color: var(--text-muted); }
+#eval-setup[open] summary { margin-bottom: 10px; }
+#eval-setup .eval-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+#eval-vehicles {
+  display: block;
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.4;
+  resize: vertical;
+}
+#eval-vehicles:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+#eval-use-last { margin-top: 10px; }
+
 #panel-footer {
   display: grid;
   /* Save | Share | Load on one row; Start drive spans all three. */
@@ -774,6 +815,29 @@ button:focus-visible { outline: 2px solid #60a5fa; outline-offset: 2px; }
   cursor: pointer;
 }
 
+/* Small Good / Bad / not-rated marker on a scene's map pin. Fixed palette
+   (not the scene's own color) so it reads the same on every scene. The
+   marker element is absolutely positioned by Mapbox, so this anchors to it. */
+.rating-badge {
+  position: absolute;
+  top: -9px;
+  right: -9px;
+  width: 18px;
+  height: 18px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+}
+.rating-badge svg { width: 10px; height: 10px; fill: #fff; display: block; }
+.rating-badge.good { background: #16a34a; }
+.rating-badge.bad { background: #dc2626; }
+.rating-badge.none { background: #6b7280; }
+
 .mapboxgl-popup-content {
   padding: 14px 16px;
   border: 1px solid var(--line);
@@ -932,6 +996,9 @@ body.driving .mapboxgl-user-location-accuracy-circle { display: none !important;
      iPads, which are wider than this breakpoint, keep all three buttons.
      Opening a shared link still works on a phone; only sending is hidden.) */
   #panel-footer #share-route { display: none; }
+  /* Same for the vehicle list editor: it is set up on the PC. The list still
+     loads with a route, so Start drive on the phone offers it. */
+  #eval-setup { display: none; }
   #panel-footer { grid-template-columns: repeat(2, 1fr); }
   .drive-btn { padding: 15px 14px; font-size: 15px; }
   .secondary-btn,
@@ -1169,6 +1236,58 @@ body.driving .mapboxgl-ctrl-bottom-left { left: 420px; }
 .scene-alert-label { margin-top: 4px; font-size: 18px; font-weight: 700; }
 .scene-alert-notes { margin-top: 6px; font-size: 13.5px; line-height: 1.45; color: #c9ccd2; white-space: pre-wrap; }
 
+/* --- scene rating (beta): Good / Bad buttons inside the alert ------------
+   They live inside the alert card, so they inherit its placement (docked
+   under the turn card on phones). Selected = filled + white ring + a check
+   mark, so it never relies on color alone. */
+
+.scene-rate { display: flex; gap: 10px; margin-top: 12px; }
+.rate-btn {
+  flex: 1;
+  min-height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 2px solid currentColor;
+  border-radius: 14px;
+  background: transparent;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 700;
+}
+.rate-btn svg { width: 28px; height: 28px; flex-shrink: 0; }
+.rate-btn.good { border-color: #16a34a; }
+.rate-btn.bad { border-color: #dc2626; }
+.rate-btn.good svg { color: #4ade80; }
+.rate-btn.bad svg { color: #f87171; }
+.rate-btn[aria-pressed="true"] { box-shadow: 0 0 0 3px #fff; }
+.rate-btn.good[aria-pressed="true"] { background: #16a34a; }
+.rate-btn.bad[aria-pressed="true"] { background: #dc2626; }
+.rate-btn[aria-pressed="true"] svg { color: #fff; }
+.rate-btn[aria-pressed="true"]::after { content: "\2713"; font-size: 18px; font-weight: 800; }
+.scene-rate-status { margin: 8px 0 0; font-size: 12.5px; color: var(--text-muted); }
+
+/* --- vehicle label (beta) ---------------------------------------------- */
+
+.drive-vehicle {
+  position: absolute;
+  left: 88px;
+  top: calc(var(--mv-bottom, 132px) + 8px);
+  max-width: 300px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: rgba(24, 25, 28, 0.92);
+  color: #eceef1;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+}
+
 /* --- re-center (shown only while follow is paused) --------------------- */
 
 .recenter-pill {
@@ -1307,6 +1426,194 @@ body.driving .mapboxgl-ctrl-bottom-left { left: 420px; }
 .arrived-actions { margin-top: 18px; }
 .arrived-actions .primary-btn { width: 100%; padding: 12px; background: var(--nav-blue); }
 
+/* Send results (beta). The arrival card and the early-exit prompt get a
+   primary "Send" button; "End drive" / "Not now" step back to a quiet
+   secondary look only while a Send button is showing. */
+#arrived-send,
+#exit-send,
+#exit-skip { min-height: 48px; }
+#arrived-send:not(.hidden) ~ #arrived-done,
+#arrived-send-status:not(.hidden) ~ #arrived-done,
+#exit-send ~ #exit-skip,
+#exit-send-status:not(.hidden) ~ #exit-skip { margin-top: 10px; }
+.arrived-actions .arrived-secondary {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  color: #fff;
+}
+.arrived-actions .hint { color: var(--text-muted); }
+
+/* Planner card: "Last drive results" (beta). Shown on all screen sizes. */
+#last-results .lr-summary {
+  padding: 10px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  font-size: 13px;
+  line-height: 1.5;
+}
+#last-results .lr-vehicle { font-weight: 700; }
+#last-results .lr-route,
+#last-results .lr-date,
+#last-results .lr-counts { color: var(--text-muted); overflow-wrap: anywhere; }
+#last-results .lr-test {
+  margin-left: 8px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--accent-soft);
+  color: var(--text);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+#last-results .lr-actions { display: flex; gap: 10px; margin-top: 10px; }
+#last-results .lr-actions button { flex: 1; min-height: 48px; }
+
+/* Send dialog: the link field reuses the share dialog look. */
+#send-link { text-overflow: ellipsis; }
+
+/* ----------------------------------------------------------------------
+   Results view: a results link (#res=...) replaces the planner panel's
+   contents (header, body, footer) with a read-only summary. #panel itself
+   is untouched, so the phone bottom sheet keeps working as it is.
+   ---------------------------------------------------------------------- */
+body.results-mode #panel-header,
+body.results-mode #panel-body,
+body.results-mode #panel-footer { display: none; }
+
+/* Scene pins go neutral so the green / red / grey lines (and the thumbs
+   badges) carry the meaning. Removing the body class brings the category
+   colors back: the pins' own inline colors were never changed. */
+body.results-mode .scene-pin-marker { background: #475569 !important; }
+
+#results-view {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+#results-view > * { flex-shrink: 0; }
+
+.results-test {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--warn);
+  color: #1a1300;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+#results-view h2.results-route {
+  margin: 0 0 10px;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  text-transform: none;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+.results-route:focus { outline: none; }
+
+.results-meta { margin: 0 0 12px; }
+.results-meta > div { display: flex; gap: 10px; padding: 5px 0; border-bottom: 1px solid var(--line); }
+.results-meta dt {
+  flex: 0 0 76px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  padding-top: 2px;
+}
+.results-meta dd { margin: 0; min-width: 0; font-size: 13.5px; color: var(--text); overflow-wrap: anywhere; }
+
+/* Counts and legend: an icon AND a word, never color alone. */
+.results-counts { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; padding: 0; list-style: none; }
+.rc {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 11px 6px 7px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--surface-2);
+  font-size: 13px;
+  font-weight: 600;
+}
+.rc-icon {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+.rc-icon svg { width: 13px; height: 13px; fill: #fff; display: block; }
+.rc.good .rc-icon { background: #16a34a; }
+.rc.bad .rc-icon { background: #dc2626; }
+.rc.none .rc-icon { background: #6b7280; }
+
+.results-actions { display: flex; flex-direction: column; gap: 8px; margin-bottom: 4px; }
+.results-actions button { width: 100%; min-height: 48px; }
+
+.results-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 0; padding: 0; list-style: none; font-size: 13px; }
+.results-legend li { display: flex; align-items: center; gap: 8px; }
+.rl-line { display: inline-block; width: 26px; height: 6px; border-radius: 3px; }
+.rl-line.good { background: #22c55e; }
+.rl-line.bad { background: #ef4444; }
+.rl-line.none { background: #9ca3af; }
+
+.results-scenes { margin: 0; padding: 0; list-style: none; }
+.results-scenes li { margin-bottom: 6px; }
+.results-scene {
+  width: 100%;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text);
+  text-align: left;
+}
+.results-scene:hover { background: var(--surface-3); }
+/* The map-pin badge, static in the list. */
+.results-scene .rating-badge {
+  position: static;
+  flex: none;
+  width: 24px;
+  height: 24px;
+}
+.results-scene .rating-badge svg { width: 13px; height: 13px; }
+.rs-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.rs-type {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+.rs-label { font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+.rs-rating { font-size: 12.5px; color: var(--text-muted); }
+.rs-unplaced { font-size: 11.5px; color: var(--warn); }
+
+@media (max-width: 700px) {
+  #results-view {
+    padding: 4px 16px calc(16px + var(--safe-bottom));
+    touch-action: pan-y;
+    overscroll-behavior: contain;
+  }
+}
+
 /* --- vehicle marker ---------------------------------------------------- */
 
 .drive-puck { width: 48px; height: 48px; filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.6)); }
@@ -1385,6 +1692,34 @@ body.driving .mapboxgl-ctrl-bottom-left { left: 420px; }
   }
   .recenter-pill { bottom: calc(206px + var(--safe-bottom)); }
   body.driving .mapboxgl-ctrl-bottom-left { left: auto; right: 12px; bottom: calc(192px + var(--safe-bottom)); }
+
+  /* Rating buttons and the vehicle label (beta). Smaller buttons and a
+     2-line note keep the docked alert short enough to clear the zoom pill
+     and the GPS cluster. The label sits in the free strip above the ETA
+     card (--eta-h is published by drive.js). */
+  .rate-btn { min-height: 56px; }
+  .scene-rate { margin-top: 8px; }
+  .scene-alert.has-rate .scene-alert-notes { -webkit-line-clamp: 2; }
+  .drive-vehicle {
+    left: calc(12px + var(--safe-left));
+    top: auto;
+    bottom: calc(var(--eta-h, 140px) + 20px + var(--safe-bottom));
+    /* Stops left of the centred arrow (about 50vw) so the two never touch. */
+    max-width: calc(50vw - 40px);
+  }
+}
+
+/* Short phones (e.g. 375x667): with a long label AND a Then chip the docked
+   alert reaches the GPS pill. Clamp the label to 2 lines and the note to
+   1 line while rating is on (the full text stays in the planner popup). */
+@media (max-width: 700px) and (max-height: 700px) {
+  .scene-alert.has-rate .scene-alert-label {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .scene-alert.has-rate .scene-alert-notes { -webkit-line-clamp: 1; }
 }
 
 /* Landscape phones / small screens with little height (e.g. an iPhone

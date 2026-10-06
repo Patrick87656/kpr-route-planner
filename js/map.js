@@ -168,10 +168,11 @@ KPR.map = (function () {
           // Don't yank the camera if a saved route was already loaded --
           // the map already opened centered on the user via init()'s
           // last-known-position fallback, so there's nothing to fly to.
-          // Same for an incoming shared route (#r=... link): it is about to
+          // Same for an incoming shared route (#r=... link) or results link
+          // (#res=...): it is about to
           // be loaded and fitted, and the locate move would override that.
           const startLocating = () => {
-            if (!KPR.routing.getRouteCoords() && !/^#r=/.test(location.hash)) geolocate.trigger();
+            if (!KPR.routing.getRouteCoords() && !/^#(r|res)=/.test(location.hash)) geolocate.trigger();
           };
           if (map.loaded()) startLocating();
           else map.once("load", startLocating);

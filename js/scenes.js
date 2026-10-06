@@ -434,6 +434,74 @@ KPR.scenes = (function () {
     return wrap;
   }
 
+  // ---- rating badge on the map pin ------------------------------------
+  //
+  // A small circle at the pin's top-right corner: thumb up (good), thumb
+  // down (bad) or a dash (not rated). Built from DOM/SVG calls only; the
+  // only input is a kind looked up in a fixed table, so nothing a link or
+  // file contains can reach the markup or a class name.
+
+  const SVG_NS = "http://www.w3.org/2000/svg";
+  const THUMB_PATH =
+    "M2 21h4V9H2v12zm20-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L13.17 1 6.59 7.59C6.22 7.95 6 8.45 6 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z";
+
+  // No prototype, so "constructor" / "__proto__" are simply not kinds.
+  const BADGE_KINDS = Object.assign(Object.create(null), {
+    good: { cls: "good", label: "Rated good" },
+    bad: { cls: "bad", label: "Rated bad" },
+    none: { cls: "none", label: "Not rated" },
+  });
+
+  /** The badge element for "good" | "bad" | "none", or null for anything
+   * else. */
+  function buildRatingBadge(kind) {
+    if (typeof kind !== "string" || !(kind in BADGE_KINDS)) return null;
+    const def = BADGE_KINDS[kind];
+    const badge = document.createElement("span");
+    badge.className = "rating-badge " + def.cls;
+    badge.setAttribute("role", "img");
+    badge.setAttribute("aria-label", def.label);
+
+    const svg = document.createElementNS(SVG_NS, "svg");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("aria-hidden", "true");
+    if (kind === "none") {
+      const bar = document.createElementNS(SVG_NS, "rect");
+      bar.setAttribute("x", "4");
+      bar.setAttribute("y", "10.5");
+      bar.setAttribute("width", "16");
+      bar.setAttribute("height", "3");
+      svg.appendChild(bar);
+    } else {
+      const path = document.createElementNS(SVG_NS, "path");
+      path.setAttribute("d", THUMB_PATH);
+      // Thumb down is the thumb up turned over.
+      if (kind === "bad") path.setAttribute("transform", "rotate(180 12 12)");
+      svg.appendChild(path);
+    }
+    badge.appendChild(svg);
+    return badge;
+  }
+
+  /** Put a badge on a scene's pin: "good" | "bad" | "none". null/undefined
+   * removes it. An existing badge is replaced; an unknown kind changes
+   * nothing. */
+  function setRatingBadge(sceneId, kind) {
+    const scene = scenes.find((s) => s.id === sceneId);
+    if (!scene || !scene.pinMarker) return;
+    const host = scene.pinMarker.getElement();
+    if (!host) return;
+    const remove = () => host.querySelectorAll(".rating-badge").forEach((el) => el.remove());
+    if (kind === null || kind === undefined) {
+      remove();
+      return;
+    }
+    const badge = buildRatingBadge(kind);
+    if (!badge) return;
+    remove();
+    host.appendChild(badge);
+  }
+
   function _removeSceneLayer(scene) {
     const map = KPR.map.getMap();
     if (map.getLayer(scene.layerId)) map.removeLayer(scene.layerId);
@@ -618,14 +686,19 @@ KPR.scenes = (function () {
     const list = Array.isArray(savedScenes) ? savedScenes : [];
     let loaded = 0;
     let skipped = 0;
-    list.forEach((s) => {
+    list.forEach((s, i) => {
       try {
         const range = resolveSceneRange(currentRouteCoords, s);
         if (!range) {
           skipped++;
           return;
         }
-        addScene(range.startIdx, range.endIdx, s.type, s.typeLabel, s.label, s.notes);
+        const scene = addScene(range.startIdx, range.endIdx, s.type, s.typeLabel, s.label, s.notes);
+        // Remember where this scene sat in the input list. Scenes that could
+        // not be placed are skipped above, so getAll() can be shorter than
+        // the list; anything indexed by the ORIGINAL order (a results link's
+        // ratings) must go through srcIndex, never through getAll() position.
+        scene.srcIndex = i;
         loaded++;
       } catch (err) {
         console.warn("Skipped a scene that could not be loaded.", err);
@@ -655,6 +728,8 @@ KPR.scenes = (function () {
     safeColor,
     buildPopupContent,
     buildPinElement,
+    buildRatingBadge,
+    setRatingBadge,
     DEFAULT_SCENE_COLORS,
   };
 })();

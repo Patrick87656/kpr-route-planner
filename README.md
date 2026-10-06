@@ -65,6 +65,51 @@ generator (no CDN): `js/vendor/qrcodegen-v1.8.0-es5.js`, from
 https://github.com/nayuki/QR-Code-generator/releases/tag/v1.8.0 (v1.8.0,
 commit `720f62bddb7226106071d4728c292cb1df519ceb`), MIT License.
 
+## Scene ratings (beta)
+
+Evaluators can mark each scene **Good** or **Bad** while driving, pick which
+vehicle they are in, and send the results back to the route's organizer.
+
+**The beta switch.** It is off by default, and with it off the app looks and
+behaves as it did before. Open the app with `?beta=1` (for example
+`http://localhost:8000/?beta=1`) to turn it on, or `?beta=0` to turn it off.
+The choice is stored per browser in localStorage under the key `kprBeta`. To
+make it the default for everyone, change the single `DEFAULT_ON` constant in
+`js/beta.js`. One exception: opening a results link (below) shows the
+read-only results view with no switch needed.
+
+**Workflow.**
+
+1. On a PC, open **Evaluation setup** and list the vehicles (one per line).
+   Then use **Share** (link or QR code) or **Save**. The vehicle list travels
+   in both.
+2. The evaluator opens the route on a phone or iPad and taps **Start drive**.
+   A dialog asks which vehicle they are in (and, optionally, their name).
+3. Inside a scene, and for 15 seconds after leaving it, **Good** and **Bad**
+   buttons appear. Tapping again changes the rating. Each tap is saved on the
+   device immediately.
+4. At the end, **Send results** on the arrival screen opens the share sheet
+   (Teams, Outlook, AirDrop) or copies a link. Leaving early with at least
+   one rating asks "Send results now?".
+5. The organizer opens the results link on a PC. The route appears with each
+   scene drawn green (good), red (bad) or grey (not rated), with a list,
+   counts, and **Export CSV**. **Open as editable route** keeps the route for
+   editing. **Close results** leaves results mode and clears the planner.
+   Drives made with the simulator are labelled TEST.
+
+**Storage and privacy.** Ratings stay on the device in localStorage. The last
+20 drives are kept (`kprSessions`); the evaluator name (`kprEvaluator`), the
+last vehicle used per route (`kprLastVehicle`), the vehicle list
+(`kprVehicles`) and the beta switch (`kprBeta`) are remembered too. **Last
+drive results** in the planner has a **Delete** button. Nothing is uploaded
+to any server. The results link itself carries the vehicle, the evaluator
+name, the route and the scene notes in the part after the `#`, so anyone who
+holds the link can read them and forward it. Treat it like the route file.
+
+**Rolling back.** The git tag `stable-v1` marks the known-good build from
+before this feature. To roll back, revert the merge commit on `main`; the
+deploy workflow then republishes.
+
 ## Phones, iPads, and hosting
 
 The app is an installable PWA (`manifest.webmanifest`, `service-worker.js`,
@@ -84,6 +129,12 @@ Sharing lives in `js/route-codec.js` (builds and strictly validates the link
 payload) and `js/share.js` (Share button, dialog, opening links). The
 vendored QR library is in `js/vendor/`. Automated tests are in `tests/`.
 
+Scene ratings use four more modules: `js/beta.js` (the beta switch),
+`js/ratings.js` (sessions, ratings and their localStorage storage),
+`js/evaluation.js` (Evaluation setup, vehicle dialog, Send results, Last
+drive results) and `js/results.js` (the read-only results view and CSV). The
+results link format (`#res=`) lives in `js/route-codec.js`.
+
 Scene route segments are rendered as individual GL sources/layers (one pair
 per scene) rather than Leaflet polyline objects — Mapbox GL draws vector
 data via `addSource`/`addLayer`, not per-feature draw calls. These are
@@ -100,4 +151,7 @@ powershell -NoProfile -File tests\run-tests.ps1
 
 It opens tests/run.html in headless Edge (or Chrome) and prints
 RESULT: PASS or RESULT: FAIL. The tests don't use Mapbox or the network.
+They cover the link codec, storage, sharing, the DOM-safety audit, and the
+scene-ratings modules (`beta`, `ratings`, `results-codec`, `scene-badge`,
+`evaluation`, `send-results`, `results`).
 You can also open tests/run.html in a browser to see the report.

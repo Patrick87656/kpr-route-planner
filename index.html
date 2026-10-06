@@ -100,6 +100,29 @@
         <ul id="scene-legend" class="legend-list"></ul>
       </section>
 
+      <!-- Last drive results (beta): the newest stored drive with ratings, so it
+           can be sent from this device. Shown on phones too. Filled in by
+           js/evaluation.js. -->
+      <section id="last-results" class="block hidden">
+        <h2 class="legend-heading">Last drive results</h2>
+        <div id="last-results-summary" class="lr-summary"></div>
+        <p id="last-results-status" class="hint hidden" role="status" aria-live="polite"></p>
+        <div class="lr-actions">
+          <button id="last-results-send" class="primary-btn" type="button">Send results</button>
+          <button id="last-results-delete" class="secondary-btn" type="button">Delete</button>
+        </div>
+      </section>
+
+      <!-- Evaluation setup: only shown with ?beta=1 (see js/beta.js) and not
+           on phone-sized screens. The vehicle list travels with the route. -->
+      <details id="eval-setup" class="block hidden">
+        <summary>Evaluation setup</summary>
+        <label for="eval-vehicles" class="eval-label">Vehicles</label>
+        <textarea id="eval-vehicles" rows="5" spellcheck="false" placeholder="Example Sedan A&#10;Example SUV B"></textarea>
+        <p id="eval-vehicles-hint" class="hint">One vehicle per line. Evaluators pick theirs from this list when they start a drive.</p>
+        <button id="eval-use-last" class="secondary-btn" type="button">Use my last list</button>
+      </details>
+
     </div>
 
     <footer id="panel-footer">
@@ -115,6 +138,47 @@
       <button id="load-route" class="secondary-btn" title="Load route file" aria-label="Load route file">&#8682; Load</button>
       <input id="load-route-input" type="file" accept="application/json" hidden>
     </footer>
+
+    <!-- Results view: shown INSTEAD of the planner header/body/footer while a
+         results link (#res=...) is open (body.results-mode). Read-only. Every
+         text field is filled by js/results.js through textContent. -->
+    <section id="results-view" class="hidden" aria-label="Drive results">
+      <div id="results-test-banner" class="results-test hidden" role="status">TEST: simulated drive, not real driving data</div>
+      <h2 id="results-route" class="results-route" tabindex="-1"></h2>
+      <dl class="results-meta">
+        <div><dt>Vehicle</dt><dd id="results-vehicle"></dd></div>
+        <div><dt>Evaluator</dt><dd id="results-evaluator"></dd></div>
+        <div><dt>Drive</dt><dd id="results-when"></dd></div>
+      </dl>
+      <ul id="results-counts" class="results-counts" aria-label="Rating totals">
+        <li class="rc good">
+          <span class="rc-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M2 21h4V9H2v12zm20-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L13.17 1 6.59 7.59C6.22 7.95 6 8.45 6 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z"/></svg></span>
+          <span id="results-count-good" class="rc-text">0 good</span>
+        </li>
+        <li class="rc bad">
+          <span class="rc-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path transform="rotate(180 12 12)" d="M2 21h4V9H2v12zm20-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L13.17 1 6.59 7.59C6.22 7.95 6 8.45 6 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z"/></svg></span>
+          <span id="results-count-bad" class="rc-text">0 bad</span>
+        </li>
+        <li class="rc none">
+          <span class="rc-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="10.5" width="16" height="3"/></svg></span>
+          <span id="results-count-none" class="rc-text">0 not rated</span>
+        </li>
+      </ul>
+      <div class="results-actions">
+        <button id="results-export" class="primary-btn" type="button">Export CSV</button>
+        <button id="results-edit" class="secondary-btn" type="button">Open as editable route</button>
+        <button id="results-close" class="secondary-btn" type="button">Close results</button>
+      </div>
+      <h2 class="legend-heading">Map colors</h2>
+      <ul id="results-legend" class="results-legend">
+        <li><span class="rl-line good" aria-hidden="true"></span>Good</li>
+        <li><span class="rl-line bad" aria-hidden="true"></span>Bad</li>
+        <li><span class="rl-line none" aria-hidden="true"></span>Not rated</li>
+      </ul>
+      <p id="results-note" class="hint hidden"></p>
+      <h2 class="legend-heading">Scenes</h2>
+      <ol id="results-scenes" class="results-scenes"></ol>
+    </section>
   </aside>
 
   <!-- Floating map style switcher (top right) -->
@@ -176,7 +240,21 @@
       </div>
       <div id="scene-alert-label" class="scene-alert-label"></div>
       <div id="scene-alert-notes" class="scene-alert-notes"></div>
+      <!-- Good / Bad for this scene (only shown with ?beta=1; see drive.js). -->
+      <div id="scene-rate" class="scene-rate hidden">
+        <button id="rate-good" class="rate-btn good" type="button" aria-pressed="false" aria-label="Rate this scene good">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
+          <span>Good</span>
+        </button>
+        <button id="rate-bad" class="rate-btn bad" type="button" aria-pressed="false" aria-label="Rate this scene bad">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"/></svg>
+          <span>Bad</span>
+        </button>
+      </div>
+      <p id="scene-rate-status" class="scene-rate-status hidden" role="status" aria-live="polite"></p>
     </div>
+
+    <div id="drive-vehicle" class="drive-vehicle hidden"></div>
 
     <button id="drive-recenter-pill" class="recenter-pill hidden" title="Follow my position again">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 17-7-4-7 4z" fill="currentColor"/></svg>
@@ -219,7 +297,20 @@
       <div class="arrived-title">You've arrived</div>
       <div id="arrived-name" class="arrived-name"></div>
       <div class="arrived-actions">
+        <button id="arrived-send" class="primary-btn hidden" type="button">Send results</button>
+        <p id="arrived-send-status" class="hint hidden" role="status"></p>
         <button id="arrived-done" class="primary-btn">End drive</button>
+      </div>
+    </div>
+
+    <!-- Early exit with at least one rating (beta): offer to send first. -->
+    <div id="drive-exit-prompt" class="arrived-card exit-prompt hidden" role="dialog" aria-labelledby="exit-prompt-title">
+      <div id="exit-prompt-title" class="arrived-title">Send results now?</div>
+      <div class="arrived-name">You rated scenes on this drive.</div>
+      <div class="arrived-actions">
+        <button id="exit-send" class="primary-btn" type="button">Send</button>
+        <p id="exit-send-status" class="hint hidden" role="status"></p>
+        <button id="exit-skip" class="primary-btn arrived-secondary" type="button">Not now</button>
       </div>
     </div>
   </div>
@@ -288,6 +379,44 @@
     </div>
   </div>
 
+  <!-- Vehicle picker: shown by Start drive (with ?beta=1) when the route has
+       a vehicle list. Filled in by js/evaluation.js. -->
+  <div id="vehicle-dialog" class="dialog hidden">
+    <div class="dialog-box" role="dialog" aria-modal="true" aria-labelledby="vehicle-title">
+      <h3 id="vehicle-title">Which vehicle are you in?</h3>
+      <p id="vehicle-dialog-route" class="hint vehicle-route"></p>
+      <label for="vehicle-select">Vehicle
+        <select id="vehicle-select">
+          <option value="" disabled selected>Select vehicle</option>
+        </select>
+      </label>
+      <label for="evaluator-name">Evaluator
+        <input id="evaluator-name" type="text" maxlength="60" placeholder="Your name (optional)" autocomplete="off">
+      </label>
+      <div class="button-row">
+        <button id="vehicle-cancel" class="secondary-btn" type="button">Cancel</button>
+        <button id="vehicle-start" class="primary-btn" type="button" disabled>Start</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Send results: shown when the device can't share or copy the results
+       link by itself. Filled in by js/evaluation.js. -->
+  <div id="send-dialog" class="dialog hidden">
+    <div class="dialog-box share-box" role="dialog" aria-modal="true" aria-labelledby="send-title">
+      <h3 id="send-title">Send results</h3>
+      <label for="send-link">Link
+        <input id="send-link" type="text" readonly>
+      </label>
+      <p id="send-long-hint" class="hint hidden"></p>
+      <p id="send-status" class="hint" role="status" aria-live="polite"></p>
+      <div class="button-row">
+        <button id="send-close" class="secondary-btn" type="button">Close</button>
+        <button id="send-copy" class="primary-btn" type="button">Copy link</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Local-only, gitignored config holding the Mapbox token as
        window.KPR_MAPBOX_TOKEN. See config.local.js.example. Must load before
        mapbox-gl.js below. -->
@@ -304,10 +433,14 @@
   <!-- QR encoder (vendored, no CDN) and the share-link codec. -->
   <script src="js/vendor/qrcodegen-v1.8.0-es5.js"></script>
   <script src="js/route-codec.js"></script>
+  <script src="js/beta.js"></script>
+  <script src="js/ratings.js"></script>
   <script src="js/search.js"></script>
   <script src="js/storage.js"></script>
   <script src="js/share.js"></script>
+  <script src="js/evaluation.js"></script>
   <script src="js/drive.js"></script>
+  <script src="js/results.js"></script>
   <script src="js/sheet.js"></script>
   <script src="js/app.js"></script>
 

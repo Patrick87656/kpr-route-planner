@@ -83,6 +83,19 @@ KPR.drive = (function () {
   let puck = null;
   let prevMode = "waypoint";
 
+  // Scene ratings (all of this stays idle unless the beta switch was on when
+  // the drive started; see start()).
+  let betaOn = false;        // KPR.beta.isOn(), read once per drive
+  let session = null;        // the on-device rating session for this drive
+  let ratingOn = false;      // rating buttons are active for this drive
+  let rateState = {};        // caller-owned state for KPR.ratings.pickRateTarget
+  let rateIndex = null;      // scene (index into `scenes`) the buttons apply to right now
+  let rated = new Map();     // scene index -> "good" | "bad" given this drive
+  let rateSaveFailed = false;
+  let rateShownKey = "";     // what the status line/buttons currently show
+  let graceCardShown = false;  // the alert card is showing a scene we already left
+  let graceTimer = null;
+
   // ---- geometry helpers --------------------------------------------------
 
   function _hav(a, b) {
@@ -304,6 +317,40 @@ KPR.drive = (function () {
       alert("Build a route first (at least 2 stops), then start the drive.");
       return;
     }
+    if (KPR.results && KPR.results.isActive()) return;
+
+    // Read once: the switch can't change during a drive.
+    const beta = KPR.beta.isOn();
+    if (beta) {
+      const vehicles = KPR.evaluation.getVehicles();
+      if (vehicles.length >= 1) {
+        // Ask which vehicle first; the drive begins when Start is pressed
+        // (Cancel/Escape leave everything as it was).
+        if (KPR.evaluation.isVehicleDialogOpen()) return;
+        KPR.evaluation.openVehicleDialog(
+          { vehicles, fingerprint: _routeFingerprint(), routeName: _routeName() },
+          (choice) => _begin({ beta: true, vehicle: choice.vehicle, evaluator: choice.evaluator })
+        );
+        return;
+      }
+    }
+    _begin({ beta });
+  }
+
+  function _routeName() {
+    const el = document.getElementById("route-name");
+    return (el && el.value.trim()) || "Untitled route";
+  }
+
+  function _routeFingerprint() {
+    return KPR.ratings.routeFingerprint(KPR.waypoints.getSaveData(), KPR.scenes.getSaveData());
+  }
+
+  /** The drive itself. `ctx.beta` says whether the evaluation features are
+   * on; `ctx.vehicle` / `ctx.evaluator` come from the vehicle dialog. */
+  function _begin(ctx) {
+    if (active) return;
+    if (!canStart()) return;
     _prepare();
     active = true;
     lastIdx = 0;
@@ -333,6 +380,7 @@ KPR.drive = (function () {
     _requestWakeLock();
     _setFollowUi();
     _setVoiceUi();
+    if (ctx.beta) _beginEvaluation(ctx);
 
     // Start at the beginning of the route until the first GPS fix arrives.
     const p0 = _pointAt(0);
@@ -350,6 +398,12 @@ KPR.drive = (function () {
     _clearResume();
     document.getElementById("drive-recenter-pill").classList.add("hidden");
     _releaseWakeLock();
+    if (betaOn) {
+      _endEvaluation();
+      // The drive just saved is now the newest stored one: show it in the
+      // planner's "Last drive results" card.
+      KPR.evaluation.refreshLastResults();
+    }
     if (window.speechSynthesis) window.speechSynthesis.cancel();
     if (puck) {
       puck.remove();
@@ -370,6 +424,265 @@ KPR.drive = (function () {
 
   function isActive() {
     return active;
+  }
+
+  // ---- scene ratings (beta) ---------------------------------------------
+  // Everything in this section is reached only when the beta switch was on
+  // at start(); with it off none of it runs.
+
+  /** Set up the vehicle label and the rating session for this drive. */
+  function _beginEvaluation(ctx) {
+    betaOn = true;
+    session = null;
+    ratingOn = false;
+    rateState = {};
+    rateIndex = null;
+    rated = new Map();
+    rateSaveFailed = false;
+    rateShownKey = "";
+    graceCardShown = false;
+
+    const vehicle = ctx.vehicle || "";
+    const name = _routeName();
+    const wps = KPR.waypoints.getSaveData();
+    const savedScenes = KPR.scenes.getSaveData();
+    const fingerprint = KPR.ratings.routeFingerprint(wps, savedScenes);
+
+    if (vehicle) {
+      KPR.ratings.setLastVehicle(fingerprint, vehicle);
+      const chip = document.getElementById("drive-vehicle");
+      chip.textContent = vehicle;
+      chip.title = vehicle;
+      chip.classList.remove("hidden");
+    }
+
+    // The session keeps a snapshot of the route it was driven on. Ratings
+    // are stored by scene position, so the snapshot must hold exactly the
+    // scenes this drive has, in the same order; if it does not (a scene
+    // without usable coordinates), rating is left off rather than risk
+    // filing a rating under the wrong scene.
+    if (scenes.length === 0) return;
+    const snapshot = KPR.codec.buildPayload({ name, waypoints: wps, scenes: savedScenes });
+    if (!Array.isArray(snapshot.s) || snapshot.s.length !== scenes.length) return;
+    session = KPR.ratings.startSession({
+      routeFingerprint: fingerprint,
+      routeName: name,
+      vehicle,
+      evaluator: ctx.evaluator || "",
+      routePayload: snapshot,
+    });
+    if (!session) return;
+    rateSaveFailed = !session.saved;
+    ratingOn = true;
+  }
+
+  /** Close the session and put the screen back (badges, labels, timers). */
+  function _endEvaluation() {
+    clearTimeout(graceTimer);
+    graceTimer = null;
+    if (ratingOn) scenes.forEach((s) => KPR.scenes.setRatingBadge(s.scene.id, null));
+    if (session) KPR.ratings.endSession(session.id);
+    _hideRate();
+    _hideSendUi();
+    graceCardShown = false;
+    document.getElementById("drive-vehicle").classList.add("hidden");
+    session = null;
+    ratingOn = false;
+    betaOn = false;
+    rateState = {};
+    rated = new Map();
+  }
+
+  // ---- sending results (beta) -------------------------------------------
+
+  /** The stored copy of this drive's session (the one in `session` is only the
+   * snapshot from when the drive began), or null. */
+  function _freshSession() {
+    return session ? KPR.ratings.getSession(session.id) : null;
+  }
+
+  /** The stored session when it has at least one rating, else null. */
+  function _ratedSession() {
+    if (!ratingOn) return null;
+    const s = _freshSession();
+    return s && KPR.ratings.countRatings(s).rated >= 1 ? s : null;
+  }
+
+  /** Build the link ahead of the tap (see KPR.evaluation.sendResults). */
+  function _prewarmLink() {
+    const s = _ratedSession();
+    if (s) KPR.evaluation.prepareLink(s).catch(() => {});
+  }
+
+  function _setArrivedSendUi() {
+    const show = arrived && _ratedSession() !== null;
+    document.getElementById("arrived-send").classList.toggle("hidden", !show);
+    document.getElementById("arrived-done").classList.toggle("arrived-secondary", show);
+    if (!show) document.getElementById("arrived-send-status").classList.add("hidden");
+    if (show) _prewarmLink();
+  }
+
+  function _hideSendUi() {
+    document.getElementById("arrived-send").classList.add("hidden");
+    document.getElementById("arrived-done").classList.remove("arrived-secondary");
+    const st = document.getElementById("arrived-send-status");
+    st.textContent = "";
+    st.classList.add("hidden");
+    _hideExitPrompt();
+  }
+
+  function _hideExitPrompt() {
+    document.getElementById("drive-exit-prompt").classList.add("hidden");
+    const st = document.getElementById("exit-send-status");
+    st.textContent = "";
+    st.classList.add("hidden");
+  }
+
+  /** The × button. With the beta on and at least one rating (and the drive
+   * not yet finished) it asks about sending first; every other case ends the
+   * drive straight away, as it always did. */
+  function requestExit() {
+    if (!active) return;
+    if (!arrived && _ratedSession()) {
+      document.getElementById("drive-exit-prompt").classList.remove("hidden");
+      _prewarmLink();
+      document.getElementById("exit-send").focus();
+      return;
+    }
+    stop();
+  }
+
+  // Tap handlers: sendResults runs synchronously up to navigator.share.
+  function _onArrivedSend() {
+    const s = _ratedSession();
+    if (s) KPR.evaluation.sendResults(s, document.getElementById("arrived-send-status"));
+  }
+
+  function _onExitSend() {
+    const s = _ratedSession();
+    if (!s) {
+      stop();
+      return;
+    }
+    KPR.evaluation.sendResults(s, document.getElementById("exit-send-status")).then(() => {
+      if (active) stop();
+    });
+  }
+
+  function _hideRate() {
+    document.getElementById("scene-rate").classList.add("hidden");
+    document.getElementById("scene-rate-status").classList.add("hidden");
+    document.getElementById("drive-scene").classList.remove("has-rate");
+    rateIndex = null;
+    rateShownKey = "";
+  }
+
+  /** Write a scene into the alert card (used for a scene we just left, or when
+   * two scenes overlap and the card is showing the other one). */
+  function _fillSceneCard(entry, kicker, distText) {
+    const sc = entry.scene;
+    const card = document.getElementById("drive-scene");
+    card.classList.remove("hidden");
+    card.style.setProperty("--scene-color", sc.color);
+    document.getElementById("scene-alert-kicker").textContent = kicker;
+    document.getElementById("scene-alert-dist").textContent = distText;
+    document.getElementById("scene-alert-label").textContent = sc.label;
+    const notesEl = document.getElementById("scene-alert-notes");
+    notesEl.textContent = sc.notes || "";
+    notesEl.classList.toggle("hidden", !sc.notes);
+  }
+
+  /** Make the buttons and status line match what is stored for the scene
+   * they currently apply to. Only touches the DOM when something changed, so
+   * the status line (a live region) isn't re-read on every GPS fix. */
+  function _reflectRating() {
+    const r = rateIndex === null ? null : rated.get(rateIndex) || null;
+    const key = `${rateIndex}:${r}:${rateSaveFailed}`;
+    if (key === rateShownKey) return;
+    rateShownKey = key;
+    document.getElementById("rate-good").setAttribute("aria-pressed", r === "good" ? "true" : "false");
+    document.getElementById("rate-bad").setAttribute("aria-pressed", r === "bad" ? "true" : "false");
+    let text = "Tap to rate this scene";
+    if (rateSaveFailed) text = "Could not save ratings on this device";
+    else if (r === "good") text = "Saved: Good - tap to change";
+    else if (r === "bad") text = "Saved: Bad - tap to change";
+    document.getElementById("scene-rate-status").textContent = text;
+  }
+
+  /**
+   * Decide which scene the Good/Bad buttons apply to and show them. Runs
+   * after _updateScenes, so the alert card (and the voice announcements)
+   * are exactly what they are without ratings; this only adds the buttons
+   * and, for the 15 s after leaving a scene, puts that scene back in the card.
+   * `fromTimer` is the grace timer firing with no new GPS fix.
+   */
+  function _updateRating(fromTimer) {
+    if (!ratingOn) return;
+    const now = Date.now();
+    const target = KPR.ratings.pickRateTarget(rateState, scenes, along, now);
+    clearTimeout(graceTimer);
+    graceTimer = null;
+
+    const card = document.getElementById("drive-scene");
+    if (!target) {
+      _hideRate();
+      // Grace ran out with no new fix: nothing else will hide the card we
+      // put the finished scene in. (On a fix, _updateScenes has already
+      // decided what the card shows, so leave it alone.)
+      if (fromTimer && graceCardShown) card.classList.add("hidden");
+      graceCardShown = false;
+      return;
+    }
+
+    const entry = scenes[target.index];
+    if (target.grace) {
+      _fillSceneCard(entry, `Just finished - ${entry.scene.typeLabel} scene`, "");
+      graceCardShown = true;
+      graceTimer = setTimeout(() => {
+        graceTimer = null;
+        if (active) _updateRating(true);
+      }, Math.max(0, rateState.graceUntil - now) + 50);
+    } else {
+      graceCardShown = false;
+      // Overlapping scenes: _updateScenes shows the first one; the buttons
+      // belong to the one that started last, so the card must show that one.
+      const shown = scenes.find((s) => along >= s.startDist && along <= s.endDist);
+      if (shown !== entry) {
+        const left = _fmtDist(Math.max(0, entry.endDist - along));
+        _fillSceneCard(entry, `Now · ${entry.scene.typeLabel} scene`, `${left.value} ${left.unit} left`);
+      }
+    }
+
+    rateIndex = target.index;
+    document.getElementById("scene-rate").classList.remove("hidden");
+    document.getElementById("scene-rate-status").classList.remove("hidden");
+    card.classList.add("has-rate");
+    _reflectRating();
+  }
+
+  function _onRate(rating) {
+    if (!ratingOn || !session || rateIndex === null) return;
+    const entry = scenes[rateIndex];
+    if (!entry) return;
+    const p = puck ? puck.getLngLat() : null;
+    const res = KPR.ratings.rate(session.id, rateIndex, rating, {
+      label: entry.scene.label,
+      type: entry.scene.typeLabel,
+      lat: p ? p.lat : null,
+      lng: p ? p.lng : null,
+      at: Date.now(),
+    });
+    // "not-saved" means the rating is held in memory for this page but could
+    // not be written to the device; everything else means it was not taken.
+    if (res.ok || res.reason === "not-saved") {
+      rated.set(rateIndex, rating);
+      KPR.scenes.setRatingBadge(entry.scene.id, rating);
+      // The stored session changed, so the link built earlier is stale.
+      _prewarmLink();
+      if (arrived) _setArrivedSendUi();
+    }
+    rateSaveFailed = !res.ok;
+    _reflectRating();
   }
 
   function _fitRoute() {
@@ -442,11 +755,17 @@ KPR.drive = (function () {
       offRouteCount = 0;
       announced = new Set();
       document.getElementById("drive-arrived").classList.add("hidden");
+      if (ratingOn) _hideSendUi();
       document.getElementById("drive-offroute").classList.add("hidden");
       simAlong = 0;
+      // Back at the start: a scene left at the end of the last run is not
+      // "just finished" any more.
+      if (ratingOn) rateState = {};
     } else {
       simAlong = along;
     }
+    // A simulated run must never pass for a real evaluation.
+    if (session) KPR.ratings.markSimulated(session.id);
     simTimer = setInterval(_simTick, SIM_TICK_MS);
     _setSimUi();
   }
@@ -531,6 +850,7 @@ KPR.drive = (function () {
 
     _updateGuidance();
     _updateScenes();
+    if (ratingOn) _updateRating(false);
     _updateEta();
     _updateSpeed(fix.speed);
     if (!opts.initial && !simTimer) {
@@ -544,6 +864,10 @@ KPR.drive = (function () {
       _stopSim();
       document.getElementById("drive-arrived").classList.remove("hidden");
       document.getElementById("arrived-name").textContent = destName;
+      if (ratingOn) {
+        _hideExitPrompt();
+        _setArrivedSendUi();
+      }
       _say(`You have arrived at ${destName}.`);
     }
   }
@@ -866,8 +1190,29 @@ KPR.drive = (function () {
 
   function init() {
     document.getElementById("start-drive").addEventListener("click", start);
-    document.getElementById("drive-exit").addEventListener("click", stop);
+    document.getElementById("drive-exit").addEventListener("click", requestExit);
     document.getElementById("arrived-done").addEventListener("click", stop);
+    document.getElementById("arrived-send").addEventListener("click", _onArrivedSend);
+    document.getElementById("exit-send").addEventListener("click", _onExitSend);
+    document.getElementById("exit-skip").addEventListener("click", stop);
+    // Keyboard only: keep Tab inside the exit prompt while it is open, so focus
+    // can't wander onto the map controls behind it (the prompt is role=dialog).
+    document.getElementById("drive-exit-prompt").addEventListener("keydown", (e) => {
+      if (e.key !== "Tab") return;
+      const btns = [document.getElementById("exit-send"), document.getElementById("exit-skip")].filter(
+        (b) => b && !b.disabled
+      );
+      if (btns.length === 0) return;
+      const first = btns[0];
+      const last = btns[btns.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    });
     document.getElementById("drive-sim").addEventListener("click", toggleSim);
     document.getElementById("drive-sim-speed").addEventListener("click", cycleSimSpeed);
     document.getElementById("drive-recenter").addEventListener("click", () => setFollow(true));
@@ -889,6 +1234,19 @@ KPR.drive = (function () {
     };
     if ("ResizeObserver" in window) new ResizeObserver(publishMvBottom).observe(mvCard);
     window.addEventListener("resize", publishMvBottom);
+
+    // Same idea for the ETA card's height (--eta-h): the vehicle label sits
+    // just above that card on phones.
+    const etaCard = document.getElementById("drive-eta");
+    const publishEtaHeight = () => {
+      const h = etaCard.getBoundingClientRect().height;
+      if (h > 0) driveUi.style.setProperty("--eta-h", `${Math.round(h)}px`);
+    };
+    if ("ResizeObserver" in window) new ResizeObserver(publishEtaHeight).observe(etaCard);
+    window.addEventListener("resize", publishEtaHeight);
+
+    document.getElementById("rate-good").addEventListener("click", () => _onRate("good"));
+    document.getElementById("rate-bad").addEventListener("click", () => _onRate("bad"));
 
     // Panning/rotating/tilting the map by hand pauses follow mode (so you
     // can look around); it resumes automatically after AUTO_RECENTER_MS of

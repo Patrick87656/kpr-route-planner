@@ -41,6 +41,59 @@
         <button id="share-copy" type="button">Copy link</button>
       </div>
     </div>
+
+    <!-- Evaluation setup (planner) and the vehicle picker dialog, same ids as index.html. -->
+    <details id="eval-setup" class="block hidden">
+      <summary>Evaluation setup</summary>
+      <textarea id="eval-vehicles" rows="5"></textarea>
+      <p id="eval-vehicles-hint" class="hint"></p>
+      <button id="eval-use-last" type="button">Use my last list</button>
+    </details>
+    <!-- Send results: the fallback dialog and the planner's Last drive results card. -->
+    <div id="send-dialog" class="dialog hidden">
+      <div class="dialog-box share-box">
+        <label for="send-link">Link <input id="send-link" type="text" readonly></label>
+        <p id="send-long-hint" class="hint hidden"></p>
+        <p id="send-status" class="hint" role="status"></p>
+        <button id="send-close" type="button">Close</button>
+        <button id="send-copy" type="button">Copy link</button>
+      </div>
+    </div>
+    <section id="last-results" class="block hidden">
+      <div id="last-results-summary"></div>
+      <p id="last-results-status" class="hint hidden" role="status"></p>
+      <button id="last-results-send" type="button">Send results</button>
+      <button id="last-results-delete" type="button">Delete</button>
+    </section>
+    <!-- Results view (read-only panel for a #res= link), same ids as index.html. -->
+    <section id="results-view" class="hidden">
+      <div id="results-test-banner" class="hidden" role="status">TEST</div>
+      <h2 id="results-route" tabindex="-1"></h2>
+      <dl>
+        <div><dt>Vehicle</dt><dd id="results-vehicle"></dd></div>
+        <div><dt>Evaluator</dt><dd id="results-evaluator"></dd></div>
+        <div><dt>Drive</dt><dd id="results-when"></dd></div>
+      </dl>
+      <ul id="results-counts">
+        <li><span id="results-count-good"></span></li>
+        <li><span id="results-count-bad"></span></li>
+        <li><span id="results-count-none"></span></li>
+      </ul>
+      <button id="results-export" type="button">Export CSV</button>
+      <button id="results-edit" type="button">Open as editable route</button>
+      <button id="results-close" type="button">Close results</button>
+      <p id="results-note" class="hidden"></p>
+      <ol id="results-scenes"></ol>
+    </section>
+    <div id="vehicle-dialog" class="dialog hidden">
+      <div class="dialog-box">
+        <p id="vehicle-dialog-route" class="hint"></p>
+        <select id="vehicle-select"><option value="" disabled selected>Select vehicle</option></select>
+        <input id="evaluator-name" type="text" maxlength="60">
+        <button id="vehicle-cancel" type="button">Cancel</button>
+        <button id="vehicle-start" type="button" disabled>Start</button>
+      </div>
+    </div>
   </div>
 
   <script src="harness.js"></script>
@@ -48,14 +101,25 @@
   <script src="../js/scenes.js"></script>
   <script src="../js/vendor/qrcodegen-v1.8.0-es5.js"></script>
   <script src="../js/route-codec.js"></script>
+  <script src="../js/beta.js"></script>
+  <script src="../js/ratings.js"></script>
+  <script src="../js/evaluation.js"></script>
   <script src="../js/storage.js"></script>
   <script src="../js/share.js"></script>
   <script src="../js/app.js"></script>
+  <script src="../js/results.js"></script>
   <script src="fixtures/route-fixtures.js"></script>
   <script src="scenes-coords.test.js"></script>
   <script src="storage.test.js"></script>
   <script src="render-audit.test.js"></script>
   <script src="codec.test.js"></script>
   <script src="share-ui.test.js"></script>
+  <script src="beta.test.js"></script>
+  <script src="results-codec.test.js"></script>
+  <script src="ratings.test.js"></script>
+  <script src="scene-badge.test.js"></script>
+  <script src="evaluation.test.js"></script>
+  <script src="send-results.test.js"></script>
+  <script src="results.test.js"></script>
 </body>
 </html>

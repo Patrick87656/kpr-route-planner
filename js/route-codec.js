@@ -3,6 +3,8 @@
  * link (and back), and decides whether an incoming string is safe to load.
  *
  * Link format:  <origin><path>#r=<marker><base64url>
+ * (A second link kind, #res=, carries a finished drive's ratings; see the
+ * "Results link" section near the end.)
  *   marker "d": the JSON is deflate-raw compressed, then base64url encoded
  *   marker "p": plain (uncompressed) JSON, base64url encoded. Used when the
  *               browser has no CompressionStream.
@@ -27,8 +29,13 @@ KPR.codec = (function () {
     MAX_SCENES: 100,
     MAX_NAME: 200, // route name, stop name/detail, scene typeLabel/label
     MAX_NOTES: 2000,
+    MAX_VEHICLES: 30, // vehicle names an organizer can list for a route
+    MAX_VEHICLE_NAME: 80, // UTF-16 units per vehicle name
+    MAX_EVALUATOR: 60, // UTF-16 units for the evaluator's name
   };
   const PREFIX = "#r=";
+  const RES_PREFIX = "#res=";
+  const MAX_START_MS = 4102444800000; // 2100-01-01; a sane ceiling for a drive start time
   const PAYLOAD_VERSION = 1;
   const WAYPOINT_TUPLE_LEN = 4; // [lat, lng, name, detail]
   const SCENE_TUPLE_LEN = 8; // [type, typeLabel, label, notes, startLat, startLng, endLat, endLng]
@@ -165,6 +172,35 @@ KPR.codec = (function () {
     Math.abs(lng) <= 180;
 
   /**
+   * Clean up a list of vehicle names. The ONE implementation used by the
+   * planner box, saved files and share links. Accepts a string (one name per
+   * line) or an array; non-strings are dropped. Each name has control
+   * characters removed, is trimmed and cut to 80 UTF-16 units (never leaving
+   * half a surrogate pair); blanks are dropped, repeats (ignoring upper/lower
+   * case) keep their first spelling, and at most 30 names are kept.
+   */
+  function normalizeVehicles(input) {
+    let items = [];
+    if (typeof input === "string") items = input.split(/\r\n|\r|\n/);
+    else if (Array.isArray(input)) items = input;
+
+    const out = [];
+    const seen = new Set();
+    for (const raw of items) {
+      if (typeof raw !== "string") continue;
+      // All C0 controls (tab and line breaks too): a name is a single line.
+      const name = _cap(raw.replace(/[\u0000-\u001F]/g, "").trim(), LIMITS.MAX_VEHICLE_NAME).trim();
+      if (!name) continue;
+      const key = name.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(name);
+      if (out.length >= LIMITS.MAX_VEHICLES) break;
+    }
+    return out;
+  }
+
+  /**
    * The compact payload for a route {name, waypoints, scenes}. Carries only
    * what is needed to rebuild it: no routeCoords (the recipient's app
    * recalculates the route) and no savedAt. Scenes carry coordinates only, so
@@ -202,7 +238,12 @@ KPR.codec = (function () {
       ]);
     });
 
-    return { v: PAYLOAD_VERSION, n: _cap(route.name, limits.MAX_NAME), w, s };
+    const payload = { v: PAYLOAD_VERSION, n: _cap(route.name, limits.MAX_NAME), w, s };
+    // Optional and absent when empty, so links for routes without a vehicle
+    // list are byte-identical to what they were before this field existed.
+    const vh = normalizeVehicles(route.vehicles);
+    if (vh.length > 0) payload.vh = vh;
+    return payload;
   }
 
   /** Route -> "d<base64url>" or "p<base64url>". Rejects with a LinkError
@@ -212,7 +253,15 @@ KPR.codec = (function () {
     if (payload.w.length > LIMITS.MAX_WAYPOINTS || payload.s.length > LIMITS.MAX_SCENES) {
       throw new LinkError("too-big");
     }
-    const bytes = new TextEncoder().encode(JSON.stringify(payload));
+    return _pack(payload, PREFIX.length);
+  }
+
+  /** Payload object -> "d<base64url>" or "p<base64url>": JSON, UTF-8, deflate
+   * when available, base64url. `prefixLen` is the length of the hash prefix
+   * the result will sit behind ("#r=" or "#res="), so the whole-hash cap is
+   * checked correctly. Shared by route links and results links. */
+  async function _pack(obj, prefixLen) {
+    const bytes = new TextEncoder().encode(JSON.stringify(obj));
     if (bytes.length > LIMITS.MAX_INFLATED_BYTES) throw new LinkError("too-big");
 
     let marker = "p";
@@ -228,7 +277,7 @@ KPR.codec = (function () {
       }
     }
     const encoded = marker + _bytesToBase64Url(body);
-    if (encoded.length > LIMITS.MAX_HASH_CHARS - PREFIX.length) throw new LinkError("too-long");
+    if (encoded.length > LIMITS.MAX_HASH_CHARS - prefixLen) throw new LinkError("too-long");
     return encoded;
   }
 
@@ -297,40 +346,56 @@ KPR.codec = (function () {
       };
     });
 
-    return { name, waypoints, scenes };
+    const route = { name, waypoints, scenes };
+
+    // Optional vehicle list. Strict about shape, forgiving about blanks and
+    // repeats (those are normalized away rather than rejected).
+    if (obj.vh !== undefined) {
+      if (!Array.isArray(obj.vh) || obj.vh.length > LIMITS.MAX_VEHICLES) throw new LinkError("bad-data");
+      const vehicles = normalizeVehicles(obj.vh.map((v) => _str(v, LIMITS.MAX_VEHICLE_NAME)));
+      if (vehicles.length > 0) route.vehicles = vehicles;
+    }
+    return route;
   }
 
   /** "d…"/"p…" -> validated route. Every failure is a LinkError. */
   async function decode(encoded) {
     try {
-      if (typeof encoded !== "string") throw new LinkError("not-link");
-      if (encoded.length > LIMITS.MAX_HASH_CHARS) throw new LinkError("too-long");
-      if (encoded.length < 1) throw new LinkError("bad-encoding");
-
-      const marker = encoded.charAt(0);
-      if (marker !== "d" && marker !== "p") throw new LinkError("bad-encoding");
-      const body = encoded.slice(1);
-      if (!BASE64URL_RE.test(body) || body.length % 4 === 1) throw new LinkError("bad-encoding");
-
-      let bytes = _base64UrlToBytes(body);
-      if (marker === "d") {
-        if (!canCompress()) throw new LinkError("unsupported");
-        bytes = await _pump(new DecompressionStream("deflate-raw"), bytes, LIMITS.MAX_INFLATED_BYTES);
-      } else if (bytes.length > LIMITS.MAX_INFLATED_BYTES) {
-        throw new LinkError("too-big");
-      }
-
-      let parsed;
-      try {
-        const text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
-        parsed = JSON.parse(text);
-      } catch (err) {
-        throw new LinkError("bad-data");
-      }
-      return validatePayload(parsed);
+      return validatePayload(await _unpack(encoded));
     } catch (err) {
       throw err instanceof LinkError ? err : new LinkError("bad-data");
     }
+  }
+
+  /** "d…"/"p…" -> the parsed JSON value, NOT yet validated (the caller runs
+   * the matching validator). Does the marker, charset, length, inflate (with
+   * the streaming size cap) and strict UTF-8 / JSON steps. Throws LinkError. */
+  async function _unpack(encoded) {
+    if (typeof encoded !== "string") throw new LinkError("not-link");
+    if (encoded.length > LIMITS.MAX_HASH_CHARS) throw new LinkError("too-long");
+    if (encoded.length < 1) throw new LinkError("bad-encoding");
+
+    const marker = encoded.charAt(0);
+    if (marker !== "d" && marker !== "p") throw new LinkError("bad-encoding");
+    const body = encoded.slice(1);
+    if (!BASE64URL_RE.test(body) || body.length % 4 === 1) throw new LinkError("bad-encoding");
+
+    let bytes = _base64UrlToBytes(body);
+    if (marker === "d") {
+      if (!canCompress()) throw new LinkError("unsupported");
+      bytes = await _pump(new DecompressionStream("deflate-raw"), bytes, LIMITS.MAX_INFLATED_BYTES);
+    } else if (bytes.length > LIMITS.MAX_INFLATED_BYTES) {
+      throw new LinkError("too-big");
+    }
+
+    let parsed;
+    try {
+      const text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+      parsed = JSON.parse(text);
+    } catch (err) {
+      throw new LinkError("bad-data");
+    }
+    return parsed;
   }
 
   /** location.hash -> the encoded string after "#r=", or null when the hash
@@ -349,15 +414,147 @@ KPR.codec = (function () {
     return l.origin + l.pathname + PREFIX + encoded;
   }
 
+  // ---------------------------------------------------------------------
+  // Results link  (#res=)
+  //
+  // What an evaluator sends back after a drive: the route (so the organizer
+  // sees it on the map) plus one rating per scene. Same safety rules as a
+  // route link: strict, all-or-nothing, fresh objects, unknown keys dropped.
+  //
+  //   { v:1, r:<route payload>, veh:"vehicle", who:"evaluator",
+  //     t:<drive start, epoch ms>, sim:0|1, g:"gb-g..." }
+  //
+  // g has exactly one character per scene in r.s: g = good, b = bad,
+  // - = not rated.
+  // ---------------------------------------------------------------------
+
+  /** One character per scene, from a session's ratings. Uses the ratings
+   * module when it is loaded; the inline version is the same rule. */
+  function _gString(session, sceneCount) {
+    if (window.KPR && KPR.ratings && typeof KPR.ratings.buildG === "function") {
+      return KPR.ratings.buildG(session);
+    }
+    const chars = new Array(sceneCount).fill("-");
+    (Array.isArray(session.ratings) ? session.ratings : []).forEach((r) => {
+      if (!r || !Number.isInteger(r.sceneIndex) || r.sceneIndex < 0 || r.sceneIndex >= sceneCount) return;
+      if (r.rating === "good") chars[r.sceneIndex] = "g";
+      else if (r.rating === "bad") chars[r.sceneIndex] = "b";
+    });
+    return chars.join("");
+  }
+
+  /**
+   * The payload for a drive session {routePayload, vehicle, evaluator,
+   * startedAt, simulated, ratings}. The stored route snapshot comes from
+   * localStorage, so it is validated first; anything wrong is a LinkError
+   * ("bad-data"). The result is checked once more with the same validator a
+   * receiver uses, so we never produce a link we would refuse to open.
+   */
+  function buildResultsPayload(session) {
+    if (!_isPlainObject(session)) throw new LinkError("bad-data");
+    const route = validatePayload(session.routePayload);
+    // The vehicle list is for planning; it is not part of a results link.
+    const r = buildPayload({ name: route.name, waypoints: route.waypoints, scenes: route.scenes });
+    if (!Number.isFinite(session.startedAt)) throw new LinkError("bad-data");
+    const payload = {
+      v: PAYLOAD_VERSION,
+      r,
+      veh: _cap(session.vehicle, LIMITS.MAX_VEHICLE_NAME),
+      who: _cap(session.evaluator, LIMITS.MAX_EVALUATOR),
+      t: Math.floor(session.startedAt),
+      sim: session.simulated ? 1 : 0,
+      g: _gString(session, r.s.length),
+    };
+    validateResultsPayload(payload);
+    return payload;
+  }
+
+  /** Session -> "d<base64url>" or "p<base64url>" for a #res= link. Rejects
+   * with a LinkError (bad-data / too-big / too-long). */
+  async function encodeResults(session) {
+    return _pack(buildResultsPayload(session), RES_PREFIX.length);
+  }
+
+  /**
+   * Check a parsed results payload and return
+   * {route, vehicle, evaluator, startedAt, simulated, ratings} where ratings
+   * has one "good" | "bad" | null per scene of route.scenes. Throws
+   * LinkError("bad-data") on the first violation.
+   */
+  function validateResultsPayload(obj) {
+    if (!_isPlainObject(obj) || obj.v !== PAYLOAD_VERSION) throw new LinkError("bad-data");
+    const route = validatePayload(obj.r);
+    const vehicle = _str(obj.veh, LIMITS.MAX_VEHICLE_NAME);
+    const evaluator = _str(obj.who, LIMITS.MAX_EVALUATOR);
+
+    const t = obj.t;
+    if (typeof t !== "number" || !Number.isInteger(t) || t < 0 || t > MAX_START_MS) {
+      throw new LinkError("bad-data");
+    }
+    if (obj.sim !== 0 && obj.sim !== 1) throw new LinkError("bad-data");
+
+    const g = obj.g;
+    if (typeof g !== "string" || g.length !== route.scenes.length || !/^[gb-]*$/.test(g)) {
+      throw new LinkError("bad-data");
+    }
+    const ratings = [];
+    for (let i = 0; i < g.length; i++) {
+      const c = g.charAt(i);
+      ratings.push(c === "g" ? "good" : c === "b" ? "bad" : null);
+    }
+
+    return {
+      // vehicles (planning data) is deliberately not carried into a result.
+      route: { name: route.name, waypoints: route.waypoints, scenes: route.scenes },
+      vehicle,
+      evaluator,
+      startedAt: t,
+      simulated: obj.sim === 1,
+      ratings,
+    };
+  }
+
+  /** "d…"/"p…" -> validated results. Every failure is a LinkError. */
+  async function decodeResults(encoded) {
+    try {
+      return validateResultsPayload(await _unpack(encoded));
+    } catch (err) {
+      throw err instanceof LinkError ? err : new LinkError("bad-data");
+    }
+  }
+
+  /** location.hash -> the encoded string after "#res=", or null when the
+   * hash isn't a results link. Throws LinkError("too-long") for an oversized
+   * hash, before anything is decoded. */
+  function parseResultsHash(hash) {
+    if (typeof hash !== "string" || !hash.startsWith(RES_PREFIX)) return null;
+    if (hash.length > LIMITS.MAX_HASH_CHARS) throw new LinkError("too-long");
+    return hash.slice(RES_PREFIX.length);
+  }
+
+  /** The URL for a results link (fragment only, like a route link). */
+  function buildResultsLink(encoded, loc) {
+    const l = loc || window.location;
+    return l.origin + l.pathname + RES_PREFIX + encoded;
+  }
+
   return {
     LIMITS,
     LinkError,
     canCompress,
+    normalizeVehicles,
     buildPayload,
     encode,
     decode,
     validatePayload,
     parseHash,
     buildLink,
+    RES_PREFIX,
+    buildResultsPayload,
+    encodeResults,
+    validateResultsPayload,
+    decodeResults,
+    parseResultsHash,
+    buildResultsLink,
   };
 })();

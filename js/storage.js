@@ -4,15 +4,19 @@
  * + FileReader for load.
  *
  * Format versions: v1 saved scenes as indices into the route polyline only.
- * v2 (current) also saves each scene's start/end coordinates, because the
+ * v2 also saves each scene's start/end coordinates, because the
  * polyline's point count changes when the route is recalculated and an index
  * alone can then point at the wrong road. v1 files still load. Nothing from
  * the v1 layout was removed (routeCoords, savedAt, routeSummary stay).
+ * v3 (current) adds an optional `vehicles` list (names an evaluator can pick
+ * from in the car). The key is written only when the list is non-empty, so a
+ * route without vehicles is the same as a v2 file apart from formatVersion.
+ * v1 and v2 files still load.
  */
 window.KPR = window.KPR || {};
 
 KPR.storage = (function () {
-  const FORMAT_VERSION = 2;
+  const FORMAT_VERSION = 3;
 
   function init() {
     document.getElementById("save-route").addEventListener("click", saveRoute);
@@ -29,8 +33,8 @@ KPR.storage = (function () {
 
   /** The object written to a saved file. Pure: everything it needs is passed
    * in. `now` (Date or ms) is optional and only there to make tests stable. */
-  function buildSaveData({ name, waypoints, scenes, routeCoords, routeSummary, now }) {
-    return {
+  function buildSaveData({ name, waypoints, scenes, routeCoords, routeSummary, vehicles, now }) {
+    const data = {
       formatVersion: FORMAT_VERSION,
       name,
       savedAt: new Date(now === undefined ? Date.now() : now).toISOString(),
@@ -39,6 +43,10 @@ KPR.storage = (function () {
       routeSummary,
       scenes,
     };
+    // Only written when there is something to write (same rule as share links).
+    const list = KPR.codec.normalizeVehicles(vehicles);
+    if (list.length > 0) data.vehicles = list;
+    return data;
   }
 
   /** File-name-safe version of a route name. */
@@ -69,6 +77,7 @@ KPR.storage = (function () {
       scenes: KPR.scenes.getSaveData(),
       routeCoords: KPR.routing.getRouteCoords() || [],
       routeSummary: KPR.routing.getSummary(),
+      vehicles: KPR.evaluation.getVehicles(),
     });
 
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
@@ -87,7 +96,7 @@ KPR.storage = (function () {
     Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180;
 
   /**
-   * Turn parsed file data (format v1 or v2) into a clean
+   * Turn parsed file data (format v1, v2 or v3) into a clean
    * {name, waypoints, scenes} that is safe to hand to applyRoute. Throws an
    * Error with a user-facing message if it isn't a KPR route at all. Bad
    * stops and scenes are dropped rather than failing the whole load.
@@ -124,7 +133,11 @@ KPR.storage = (function () {
         return rec;
       });
 
-    return { name: _str(data.name), waypoints, scenes };
+    const route = { name: _str(data.name), waypoints, scenes };
+    // Optional (format v3). Anything that is not a usable list is ignored.
+    const vehicles = KPR.codec.normalizeVehicles(data.vehicles);
+    if (vehicles.length > 0) route.vehicles = vehicles;
+    return route;
   }
 
   /**
@@ -136,6 +149,9 @@ KPR.storage = (function () {
    */
   async function applyRoute(route) {
     document.getElementById("route-name").value = route.name || "Untitled route";
+    // The vehicle list belongs to the route: a route without one clears the
+    // box (it must not keep the previous route's vehicles).
+    KPR.evaluation.setVehicles(route.vehicles || []);
     // quiet: don't recalculate once per stop; we do it once below.
     KPR.waypoints.loadFrom(route.waypoints, { quiet: true });
     await KPR.routing.recalculate();
