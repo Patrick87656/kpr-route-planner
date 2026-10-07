@@ -42,13 +42,13 @@
   }
 
   // Must stay first: nothing has set the flag yet, so this is the shipped default.
-  test("beta: off by default", () => {
+  test("beta: on by default (shipped default DEFAULT_ON=true)", () => {
     try {
       localStorage.removeItem("kprBeta");
     } catch (err) {
       /* ignore */
     }
-    assert.equal(KPR.beta.isOn(), false);
+    assert.equal(KPR.beta.isOn(), true);
   });
 
   test("beta: ?beta=1 turns it on, removes the param, keeps the #fragment and other params", () => {
@@ -80,6 +80,9 @@
 
   test("beta: a junk value is ignored and left in the address", () => {
     ["?beta=2", "?beta=true", "?beta=", "?beta=1%20", "?other=1"].forEach((search) => {
+      // Pin the flag off first so this tests ONLY that a junk value changes
+      // nothing -- it must not depend on the shipped default (now on).
+      KPR.beta.set(false);
       const env = fakeEnv(search, "#r=dABC");
       KPR.beta.initFromUrl(env.loc, env.hist);
       assert.equal(KPR.beta.isOn(), false, search);
@@ -90,7 +93,12 @@
 
   test("beta: throwing storage falls back to memory and never throws", () => {
     withThrowingStorage(() => {
-      assert.equal(KPR.beta.isOn(), false, "reads survive");
+      // reads survive even though every storage access throws
+      KPR.beta.isOn();
+      // a value set during the page's life is held in memory, since it
+      // couldn't be written to storage
+      KPR.beta.set(false);
+      assert.equal(KPR.beta.isOn(), false, "memory holds a set value");
       KPR.beta.set(true);
       assert.equal(KPR.beta.isOn(), true, "memory holds the value");
       const env = fakeEnv("?beta=0");

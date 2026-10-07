@@ -119,16 +119,16 @@ Privacy, in plain terms:
 
 ## Scene ratings beta
 
-Good/Bad scene ratings, the vehicle picker and Send results are behind a
-switch that is off by default. See the README for the workflow.
+Good/Bad scene ratings, the vehicle picker and Send results are ON by default
+for everyone. See the README for the workflow.
 
-- **Turn on:** open the hosted page with `?beta=1` on the end of the address.
-  **Turn off:** `?beta=0`. The choice is remembered per browser.
-- **iOS home-screen app:** it has its own storage, separate from Safari, and
-  it always launches without a `?beta` parameter. Turning beta on in Safari
-  does not turn it on in the installed app. Enable it in the browser or app
-  the evaluator actually uses, or change `DEFAULT_ON` in `js/beta.js` to make
-  it the default for everyone.
+- **Turn off for one browser:** open the hosted page with `?beta=0` on the end
+  of the address. **Turn back on:** `?beta=1`. The choice is remembered per
+  browser. To hide the features for everyone again, set `DEFAULT_ON` in
+  `js/beta.js` back to `false`.
+- **A browser that was turned off stays off.** Any device where you opened
+  `?beta=0` while testing keeps the features hidden until you open `?beta=1`
+  there, because a stored choice wins over the default.
 - **First open needs a network connection.** A `?beta=1` address is cached
   separately from the plain address, so the first open with the parameter
   can't come from the offline cache.
