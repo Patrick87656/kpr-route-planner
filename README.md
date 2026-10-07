@@ -70,13 +70,11 @@ commit `720f62bddb7226106071d4728c292cb1df519ceb`), MIT License.
 Evaluators can mark each scene **Good** or **Bad** while driving, pick which
 vehicle they are in, and send the results back to the route's organizer.
 
-**The beta switch.** It is off by default, and with it off the app looks and
-behaves as it did before. Open the app with `?beta=1` (for example
-`http://localhost:8000/?beta=1`) to turn it on, or `?beta=0` to turn it off.
-The choice is stored per browser in localStorage under the key `kprBeta`. To
-make it the default for everyone, change the single `DEFAULT_ON` constant in
-`js/beta.js`. One exception: opening a results link (below) shows the
-read-only results view with no switch needed.
+**The beta switch.** These features are on by default for everyone. A browser
+can still turn them off for itself with `?beta=0`, and back on with `?beta=1`;
+the choice is stored per browser in localStorage under the key `kprBeta`. To
+hide the features for everyone again, set the single `DEFAULT_ON` constant in
+`js/beta.js` back to `false`.
 
 **Workflow.**
 

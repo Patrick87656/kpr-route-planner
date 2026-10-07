@@ -13,10 +13,10 @@
 window.KPR = window.KPR || {};
 
 KPR.beta = (function () {
-  // Flip this to true to turn the evaluation features ON for everyone. It is
-  // the only line that needs to change. An explicit ?beta=0 still turns the
-  // features off on that device.
-  const DEFAULT_ON = false;
+  // The evaluation features (scene ratings, vehicle picker, Send results) are
+  // ON for everyone. Set this back to false to hide them again; an explicit
+  // ?beta=0 still turns them off on an individual device either way.
+  const DEFAULT_ON = true;
 
   const KEY = "kprBeta"; // "1" = on, "0" = off, absent = DEFAULT_ON
 
