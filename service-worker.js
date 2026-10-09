@@ -30,6 +30,7 @@ const APP_SHELL = [
   "./js/search.js",
   "./js/storage.js",
   "./js/share.js",
+  "./js/open-link.js",
   "./js/evaluation.js",
   "./js/drive.js",
   "./js/results.js",

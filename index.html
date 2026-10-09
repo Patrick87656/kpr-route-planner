@@ -61,6 +61,9 @@
           <button id="mode-scene" class="mode-btn" data-mode="scene" role="tab">&#9703; Tag Scene</button>
         </div>
         <p class="hint" id="mode-hint">Click the map to add waypoints in order.</p>
+        <!-- Scanning a QR or tapping a link opens the browser, not the
+             installed app. This lets someone paste the link here instead. -->
+        <button id="open-link-btn" class="text-btn open-link-btn" type="button">&#128279; Open a shared link</button>
       </section>
 
       <section class="block">
@@ -379,6 +382,25 @@
     </div>
   </div>
 
+  <!-- Open a shared link: paste a route or results link. Handled by
+       js/open-link.js, which hands the link to the same loaders a scanned
+       link uses. -->
+  <div id="open-link-dialog" class="dialog hidden">
+    <div class="dialog-box" role="dialog" aria-modal="true" aria-labelledby="open-link-title">
+      <h3 id="open-link-title">Open a shared link</h3>
+      <p class="hint">Copy a route link from Teams, Messages or email, then paste it here.</p>
+      <label for="open-link-input">Link
+        <textarea id="open-link-input" rows="3" placeholder="Paste the link here" autocomplete="off" autocapitalize="off" spellcheck="false"></textarea>
+      </label>
+      <p id="open-link-msg" class="hint open-link-msg hidden" role="alert"></p>
+      <div class="button-row">
+        <button id="open-link-close" class="secondary-btn" type="button">Cancel</button>
+        <button id="open-link-paste" class="secondary-btn" type="button">Paste</button>
+        <button id="open-link-go" class="primary-btn" type="button">Open</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Vehicle picker: shown by Start drive (with ?beta=1) when the route has
        a vehicle list. Filled in by js/evaluation.js. -->
   <div id="vehicle-dialog" class="dialog hidden">
@@ -441,6 +463,7 @@
   <script src="js/search.js"></script>
   <script src="js/storage.js"></script>
   <script src="js/share.js"></script>
+  <script src="js/open-link.js"></script>
   <script src="js/evaluation.js"></script>
   <script src="js/drive.js"></script>
   <script src="js/results.js"></script>

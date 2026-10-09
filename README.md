@@ -54,7 +54,11 @@ replacing them.
 
 **Save** and **Load** (the JSON file) still work exactly as before and stay
 the easiest way to move routes onto the in-car iPads. On iPhone and iPad a
-link opens in Safari, not in the installed home-screen app.
+link (or a scanned QR code) opens in Safari, not in the installed home-screen
+app; web apps can't claim links. To open a route in the installed app instead,
+open the app, tap **Open a shared link**, paste the link and tap **Open**. It
+accepts route links and results links, with or without other text around them,
+and goes through the same checks as a tapped link.
 
 The route travels inside the link itself (the part after `#`), so no server
 ever receives it, and the QR code is drawn on the device. See the privacy

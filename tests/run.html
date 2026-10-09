@@ -42,6 +42,18 @@
       </div>
     </div>
 
+    <!-- Open a shared link: entry button and dialog, same ids as index.html. -->
+    <button id="open-link-btn" type="button">Open a shared link</button>
+    <div id="open-link-dialog" class="dialog hidden">
+      <div class="dialog-box">
+        <textarea id="open-link-input" rows="3"></textarea>
+        <p id="open-link-msg" class="hidden" role="alert"></p>
+        <button id="open-link-close" type="button">Cancel</button>
+        <button id="open-link-paste" type="button">Paste</button>
+        <button id="open-link-go" type="button">Open</button>
+      </div>
+    </div>
+
     <!-- Evaluation setup (planner) and the vehicle picker dialog, same ids as index.html. -->
     <details id="eval-setup" class="block hidden">
       <summary>Evaluation setup</summary>
@@ -106,6 +118,7 @@
   <script src="../js/evaluation.js"></script>
   <script src="../js/storage.js"></script>
   <script src="../js/share.js"></script>
+  <script src="../js/open-link.js"></script>
   <script src="../js/app.js"></script>
   <script src="../js/results.js"></script>
   <script src="fixtures/route-fixtures.js"></script>
@@ -121,5 +134,6 @@
   <script src="evaluation.test.js"></script>
   <script src="send-results.test.js"></script>
   <script src="results.test.js"></script>
+  <script src="open-link.test.js"></script>
 </body>
 </html>

@@ -114,8 +114,10 @@ Privacy, in plain terms:
   and the app loads no outside script for it.
 - **Links over about 2000 characters may be cut off by some chat apps.** If a
   recipient reports a broken link, use **Save** and send the file instead.
-- On iPhone and iPad, a link opens in Safari, not in the installed
-  home-screen app.
+- On iPhone and iPad, a link (or a scanned QR code) opens in Safari, not in
+  the installed home-screen app. Web apps can't claim links. To open it in the
+  installed app instead: open the app, tap **Open a shared link**, paste the
+  link, tap **Open**.
 
 ## Scene ratings beta
 
