@@ -18,6 +18,7 @@ const APP_SHELL = [
   "./",
   "./index.html",
   "./css/style.css",
+  "./js/ocean-lut.js",
   "./js/map.js",
   "./js/waypoints.js",
   "./js/routing.js",

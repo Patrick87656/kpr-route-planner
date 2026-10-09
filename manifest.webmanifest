@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "KPR Route Planner",
   "short_name": "KPR Routes",
   "description": "Plan and drive fixed-order Key Person Ride evaluation routes with scene callouts.",
@@ -6,8 +6,8 @@
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#15181e",
-  "theme_color": "#1d2129",
+  "background_color": "#0a1420",
+  "theme_color": "#102032",
   "icons": [
     { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
