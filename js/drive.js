@@ -1001,7 +1001,7 @@ KPR.drive = (function () {
     el.className = "drive-puck";
     el.innerHTML =
       '<svg viewBox="0 0 48 48"><path d="M24 5 L39 40 L24 32 L9 40 Z" ' +
-      'fill="#3b82f6" stroke="#fff" stroke-width="3.5" stroke-linejoin="round"/></svg>';
+      'fill="#8b7cf6" stroke="#fff" stroke-width="3.5" stroke-linejoin="round"/></svg>';
     puck = new mapboxgl.Marker({ element: el, rotationAlignment: "map", pitchAlignment: "map" })
       .setLngLat([route[0].lng, route[0].lat])
       .addTo(KPR.map.getMap());

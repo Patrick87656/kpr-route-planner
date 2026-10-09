@@ -1,6 +1,6 @@
 /**
  * map.js — base Mapbox GL JS map setup: the map instance and the
- * Night / Day / Satellite style switcher. Exposes a small KPR.map namespace
+ * Ocean / Day / Satellite style switcher. Exposes a small KPR.map namespace
  * other modules use.
  *
  * Mapbox GL renders vector tiles on the GPU (not raster image tiles like
@@ -10,10 +10,12 @@
  * `window.KPR_MAPBOX_TOKEN`. The free tier (50k map loads/month) does not
  * require a credit card to start.
  *
- * Night and Day both use Mapbox's "Standard" style, which has 3D buildings
- * and a lighting preset (the look in Mapbox's in-car navigation). Switching
- * between them only changes the preset, so the route and scene layers stay
- * put. Satellite is a separate style and needs a full style swap.
+ * Ocean and Day both use Mapbox's "Standard" style, which has 3D buildings
+ * and configurable lighting/color (the look in Mapbox's in-car navigation).
+ * Ocean = dusk light + monochrome theme + blue-teal color overrides; Day =
+ * the day light preset. Switching between them only re-applies the Standard
+ * basemap config, so the route and scene layers stay put. Satellite is a
+ * separate style and needs a full style swap.
  *
  * Layout note: the map is full-screen and the planner panel floats over its
  * left side. `setPadding` tells Mapbox that strip is covered, so fitBounds,
@@ -29,12 +31,41 @@ KPR.map = (function () {
   const LAST_POS_KEY = "kprLastPosition"; // {lat, lng, ts}; last known GPS fix, so a reload opens near the user instead of Las Vegas
 
   const STANDARD_URL = "mapbox://styles/mapbox/standard";
+
+  // Ocean-at-dusk look. Mapbox Standard has no built-in "ocean" theme (only
+  // default/faded/monochrome/custom), so we build it: the monochrome theme
+  // for a clean desaturated base, the "dusk" light preset, and per-feature
+  // color overrides that tint water/land/roads/buildings toward a deep
+  // blue-teal. All are documented Standard config properties (GL JS v3.9).
+  // `basemapConfig` is applied on every style.load (see _applyBasemapConfig).
+  // The ocean tint is a custom color LUT (KPR.OCEAN_LUT, from ocean-lut.js)
+  // rather than the per-feature colorWater/colorLand overrides, because
+  // those color keys need GL JS v3.17+ and this app is pinned to v3.9 (where
+  // they are silently ignored). The LUT (theme:"custom" + theme-data) is the
+  // same mechanism Mapbox's own Ocean demo uses and works on v3.9.
+  // Built lazily (via _oceanConfig) so it doesn't matter whether ocean-lut.js
+  // loaded before this module. If the LUT is somehow missing, fall back to
+  // the plain monochrome dusk look rather than erroring.
+  function _oceanConfig() {
+    const cfg = { lightPreset: "dusk" };
+    if (window.KPR && KPR.OCEAN_LUT) {
+      cfg.theme = "custom";
+      cfg["theme-data"] = KPR.OCEAN_LUT;
+    } else {
+      cfg.theme = "monochrome";
+    }
+    return cfg;
+  }
   const STYLES = {
-    night: { url: STANDARD_URL, lightPreset: "night" },
-    day: { url: STANDARD_URL, lightPreset: "day" },
+    // Night slot replaced by the Ocean-dusk theme (keeps the same key spot
+    // in the toggle; label changed to "Ocean" in index.html). basemapConfig
+    // is a getter so the LUT (loaded by ocean-lut.js) is read when applied,
+    // not when this object is first created.
+    ocean: { url: STANDARD_URL, get basemapConfig() { return _oceanConfig(); } },
+    day: { url: STANDARD_URL, basemapConfig: { lightPreset: "day" } },
     satellite: { url: "mapbox://styles/mapbox/satellite-streets-v12" },
   };
-  const DEFAULT_STYLE = "night";
+  const DEFAULT_STYLE = "ocean";
 
   let map = null;
   let geolocateControl = null;
@@ -69,7 +100,7 @@ KPR.map = (function () {
     map = new mapboxgl.Map({
       container: "map",
       style: STYLES[DEFAULT_STYLE].url,
-      config: { basemap: { lightPreset: STYLES[DEFAULT_STYLE].lightPreset } },
+      config: { basemap: STYLES[DEFAULT_STYLE].basemapConfig || {} },
       center: last ? [last.lng, last.lat] : DEFAULT_CENTER,
       zoom: last ? LAST_POS_ZOOM : DEFAULT_ZOOM,
     });
@@ -82,7 +113,7 @@ KPR.map = (function () {
 
     map.on("style.load", () => {
       styleReady = true;
-      _applyLightPreset();
+      _applyBasemapConfig();
       styleReloadCallbacks.forEach((cb) => cb());
     });
 
@@ -217,14 +248,20 @@ KPR.map = (function () {
     }
   }
 
-  function _applyLightPreset() {
-    const preset = STYLES[currentStyleKey].lightPreset;
-    if (!preset) return;
-    try {
-      map.setConfigProperty("basemap", "lightPreset", preset);
-    } catch (err) {
-      console.warn("Could not set map light preset:", err);
-    }
+  /** Apply the current style's Standard config (light preset, theme, and any
+   * color overrides). Satellite is a separate style with no basemap config,
+   * so it has none and this is a no-op for it. Each property is set
+   * independently so one unsupported key can't block the rest. */
+  function _applyBasemapConfig() {
+    const cfg = STYLES[currentStyleKey].basemapConfig;
+    if (!cfg) return;
+    Object.keys(cfg).forEach((prop) => {
+      try {
+        map.setConfigProperty("basemap", prop, cfg[prop]);
+      } catch (err) {
+        console.warn("Could not set basemap config", prop, err && err.message);
+      }
+    });
   }
 
   /** Width in px of the map strip covered by the floating panel. On narrow
@@ -297,15 +334,36 @@ KPR.map = (function () {
     styleReloadCallbacks.push(callback);
   }
 
-  /** Switch to one of the STYLES keys. Night <-> Day only changes the
-   * lighting preset; anything involving Satellite swaps the whole style. */
+  // The Standard config keys any style might set. Ocean sets all of them;
+  // Day sets only lightPreset. When switching between two Standard styles
+  // without a reload, keys the NEW style doesn't set must be reset to their
+  // Standard defaults, or Ocean's blue tint would linger on the Day map.
+  const BASEMAP_DEFAULTS = {
+    lightPreset: "day",
+    theme: "default",
+    "theme-data": undefined, // drop the ocean LUT when leaving Ocean for Day
+  };
+
+  /** Switch to one of the STYLES keys. Ocean <-> Day only re-applies the
+   * Standard basemap config; anything involving Satellite swaps the whole
+   * style (which fires style.load and re-applies config there). */
   function setStyleKey(key) {
     const next = STYLES[key];
     if (!next || key === currentStyleKey) return;
     const prev = STYLES[currentStyleKey];
     currentStyleKey = key;
     if (prev.url === next.url) {
-      _applyLightPreset();
+      // Reset to defaults first, then apply the new style's config, so a
+      // property set by the old style but not the new one goes back to
+      // Standard's default instead of lingering.
+      const cfg = Object.assign({}, BASEMAP_DEFAULTS, next.basemapConfig || {});
+      Object.keys(cfg).forEach((prop) => {
+        try {
+          map.setConfigProperty("basemap", prop, cfg[prop]);
+        } catch (err) {
+          /* unsupported key: ignore, see _applyBasemapConfig */
+        }
+      });
     } else {
       styleReady = false;
       map.setStyle(next.url);

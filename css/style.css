@@ -1,5 +1,5 @@
-/* ======================================================================
-   KPR Route Planner — Mapbox edition
+﻿/* ======================================================================
+   KPR Route Planner â€” Mapbox edition
    Dark, full-bleed map with floating panels (onX Offroad / Rever style).
    ====================================================================== */
 
@@ -8,15 +8,25 @@
   --accent-hover: #ef1847;
   --accent-soft: rgba(214, 0, 47, 0.16);
 
-  /* Neutral greys + navigation blue, matching Mapbox's in-car nav UI. */
-  --surface: rgba(32, 33, 37, 0.96);   /* floating panels */
-  --surface-2: #2c2e33;                /* cards / inputs inside panels */
-  --surface-3: #36383e;                /* hover */
-  --line: rgba(255, 255, 255, 0.07);
-  --line-strong: #44474e;
+  /* Dark, nearly-neutral surfaces with a faint cool cast, matching the
+     subdued charcoal of Mapbox's Ocean basemap (the color comes from the
+     violet route + accents, not the chrome). */
+  --surface: rgba(26, 27, 38, 0.96);   /* floating panels */
+  --surface-2: #242634;                /* cards / inputs inside panels */
+  --surface-3: #2e3042;                /* hover */
+  --line: rgba(170, 170, 210, 0.09);
+  --line-strong: #3b3d52;
 
-  --nav-blue: #3b7ff5;
-  --nav-blue-hover: #4d8dff;
+  /* "nav-blue" is now the violet used for the route line, drive arrow and
+     the location dot -- kept under the same variable name so every existing
+     reference picks it up. */
+  --nav-blue: #8b7cf6;
+  --nav-blue-hover: #a08cff;
+  /* Filled UI blocks (next-turn card, primary buttons, pills) use a slightly
+     deeper violet so white text stays readable. */
+  --nav-fill: #6d5cf0;
+  --nav-fill-hover: #7f6ff5;
+  --nav-ink: #130a2e;
 
   --text: #eceef1;
   --text-muted: #a3a6ad;
@@ -54,7 +64,7 @@ html, body {
   font-family: var(--font);
   font-size: 13px;
   color: var(--text);
-  background: #15181e;
+  background: #15161f;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -69,7 +79,7 @@ button, input, select, textarea { font-family: inherit; }
 #map {
   position: fixed;
   inset: 0;
-  background: #15181e;
+  background: #15161f;
 }
 
 .map-error {
@@ -268,13 +278,13 @@ h2 .count { font-weight: 600; letter-spacing: 0; }
   gap: 8px;
   padding: 13px 14px;
   border-radius: var(--radius-md);
-  background: var(--nav-blue);
+  background: var(--nav-fill);
   color: #fff;
   font-size: 14px;
   font-weight: 700;
-  box-shadow: 0 6px 18px rgba(59, 127, 245, 0.35);
+  box-shadow: 0 6px 18px rgba(15, 127, 168, 0.4);
 }
-.drive-btn:hover { background: var(--nav-blue-hover); }
+.drive-btn:hover { background: var(--nav-fill-hover); }
 .drive-btn svg { width: 18px; height: 18px; }
 
 /* ----------------------------------------------------------------------
@@ -708,7 +718,7 @@ button:focus-visible { outline: 2px solid #60a5fa; outline-offset: 2px; }
   padding: 24px;
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
-  background: #1d2129;
+  background: #1a1b26;
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
 }
 .dialog-box h3 { margin: 0 0 18px; font-size: 17px; font-weight: 700; }
@@ -842,7 +852,7 @@ button:focus-visible { outline: 2px solid #60a5fa; outline-offset: 2px; }
   padding: 14px 16px;
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
-  background: #1d2129;
+  background: #1a1b26;
   color: var(--text);
   box-shadow: var(--shadow);
   font-family: var(--font);
@@ -851,12 +861,12 @@ button:focus-visible { outline: 2px solid #60a5fa; outline-offset: 2px; }
 .mapboxgl-popup-close-button:hover { background: none; color: var(--text); }
 .mapboxgl-popup-anchor-top .mapboxgl-popup-tip,
 .mapboxgl-popup-anchor-top-left .mapboxgl-popup-tip,
-.mapboxgl-popup-anchor-top-right .mapboxgl-popup-tip { border-bottom-color: #1d2129; }
+.mapboxgl-popup-anchor-top-right .mapboxgl-popup-tip { border-bottom-color: #1a1b26; }
 .mapboxgl-popup-anchor-bottom .mapboxgl-popup-tip,
 .mapboxgl-popup-anchor-bottom-left .mapboxgl-popup-tip,
-.mapboxgl-popup-anchor-bottom-right .mapboxgl-popup-tip { border-top-color: #1d2129; }
-.mapboxgl-popup-anchor-left .mapboxgl-popup-tip { border-right-color: #1d2129; }
-.mapboxgl-popup-anchor-right .mapboxgl-popup-tip { border-left-color: #1d2129; }
+.mapboxgl-popup-anchor-bottom-right .mapboxgl-popup-tip { border-top-color: #1a1b26; }
+.mapboxgl-popup-anchor-left .mapboxgl-popup-tip { border-right-color: #1a1b26; }
+.mapboxgl-popup-anchor-right .mapboxgl-popup-tip { border-left-color: #1a1b26; }
 
 .scene-popup { min-width: 190px; max-width: 270px; }
 .scene-popup-type {
@@ -911,7 +921,7 @@ button:focus-visible { outline: 2px solid #60a5fa; outline-offset: 2px; }
    and hide it in Drive mode -- drive.js draws its own arrow puck there. */
 .mapboxgl-user-location-dot,
 .mapboxgl-user-location-dot::before { background-color: var(--nav-blue); }
-.mapboxgl-user-location-accuracy-circle { background-color: rgba(59, 127, 245, 0.15); }
+.mapboxgl-user-location-accuracy-circle { background-color: rgba(139, 124, 246, 0.18); }
 body.driving .mapboxgl-user-location,
 body.driving .mapboxgl-user-location-accuracy-circle { display: none !important; }
 
@@ -1067,7 +1077,7 @@ body.driving .mapboxgl-ctrl-bottom-left { left: 420px; }
   max-width: calc(100vw - 108px);
   overflow: hidden;
   border-radius: 18px;
-  background: var(--nav-blue);
+  background: var(--nav-fill);
   color: #fff;
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
 }
@@ -1189,7 +1199,7 @@ body.driving .mapboxgl-ctrl-bottom-left { left: 420px; }
 }
 .drive-pill.ok::before { background: var(--ok); }
 .drive-pill.warn::before { background: var(--warn); }
-.drive-pill.sim::before { background: var(--nav-blue-hover); }
+.drive-pill.sim::before { background: var(--nav-fill-hover); }
 
 .speed-bubble {
   width: 64px;
@@ -1300,14 +1310,14 @@ body.driving .mapboxgl-ctrl-bottom-left { left: 420px; }
   gap: 10px;
   padding: 14px 24px;
   border-radius: 999px;
-  background: var(--nav-blue);
+  background: var(--nav-fill);
   color: #fff;
   font-size: 16px;
   font-weight: 700;
   box-shadow: 0 10px 26px rgba(0, 0, 0, 0.5);
   animation: kpr-fade-in 0.15s ease;
 }
-.recenter-pill:hover { background: var(--nav-blue-hover); }
+.recenter-pill:hover { background: var(--nav-fill-hover); }
 .recenter-pill:active { transform: translateX(-50%) translateY(1px); }
 .recenter-pill svg { width: 18px; height: 18px; }
 
@@ -1359,7 +1369,7 @@ body.driving .mapboxgl-ctrl-bottom-left { left: 420px; }
 .eta-mid { display: flex; align-items: center; gap: 12px; padding: 12px 16px 8px; }
 .eta-mid .round-btn { width: 46px; height: 46px; background: #34363c; box-shadow: none; font-size: 18px; }
 .eta-mid .round-btn:hover { background: #42444b; }
-.eta-mid .round-btn.active { background: var(--nav-blue); color: #fff; }
+.eta-mid .round-btn.active { background: var(--nav-fill); color: #fff; }
 .eta-sim { display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .sim-speed {
   padding: 1px 8px;
@@ -1418,13 +1428,13 @@ body.driving .mapboxgl-ctrl-bottom-left { left: 420px; }
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: var(--nav-blue);
+  background: var(--nav-fill);
   font-size: 26px;
 }
 .arrived-title { font-size: 20px; font-weight: 700; }
 .arrived-name { margin-top: 4px; font-size: 14px; color: var(--text-muted); }
 .arrived-actions { margin-top: 18px; }
-.arrived-actions .primary-btn { width: 100%; padding: 12px; background: var(--nav-blue); }
+.arrived-actions .primary-btn { width: 100%; padding: 12px; background: var(--nav-fill); }
 
 /* Send results (beta). The arrival card and the early-exit prompt get a
    primary "Send" button; "End drive" / "Not now" step back to a quiet

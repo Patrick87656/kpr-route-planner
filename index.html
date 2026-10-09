@@ -1,11 +1,11 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <!-- viewport-fit=cover lets the map fill behind the iOS notch/home indicator;
      the UI uses env(safe-area-inset-*) to stay clear of them. -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#1d2129">
+<meta name="theme-color" content="#1a1b26">
 <title>KPR Route Planner</title>
 
 <!-- PWA: installable, launches full-screen from the home screen. -->
@@ -49,7 +49,7 @@
       <section class="block">
         <div id="search-row">
           <span class="search-icon" aria-hidden="true">&#9906;</span>
-          <input id="search-input" type="text" placeholder="Search places, businesses, addresses…" aria-label="Search">
+          <input id="search-input" type="text" placeholder="Search places, businesses, addressesâ€¦" aria-label="Search">
           <button id="search-btn" class="icon-btn" title="Search">Go</button>
         </div>
         <ul id="search-results" class="item-list hidden"></ul>
@@ -66,16 +66,16 @@
       <section class="block">
         <div id="stats-card">
           <div class="stat">
-            <div class="stat-value" id="stat-miles">–</div>
+            <div class="stat-value" id="stat-miles">â€“</div>
             <div class="stat-label">Miles</div>
           </div>
           <div class="stat">
-            <div class="stat-value" id="stat-minutes">–</div>
+            <div class="stat-value" id="stat-minutes">â€“</div>
             <div class="stat-label">Minutes</div>
           </div>
           <div class="stat">
             <div class="stat-value" id="stat-stops">0</div>
-            <div class="stat-label">Stops · fixed</div>
+            <div class="stat-label">Stops Â· fixed</div>
           </div>
           <button id="recalc-route" class="icon-btn stats-recalc" title="Recalculate route" aria-label="Recalculate route">&#8635;</button>
         </div>
@@ -183,7 +183,7 @@
 
   <!-- Floating map style switcher (top right) -->
   <div id="layer-toggle" class="float-card segmented">
-    <button id="layer-night" class="layer-btn active" data-style="night">Night</button>
+    <button id="layer-ocean" class="layer-btn active" data-style="ocean">Ocean</button>
     <button id="layer-day" class="layer-btn" data-style="day">Day</button>
     <button id="layer-satellite" class="layer-btn" data-style="satellite">Satellite</button>
   </div>
@@ -199,7 +199,7 @@
       <div class="mv-main">
         <span class="mv-icon" id="mv-icon" aria-hidden="true"></span>
         <div class="mv-text">
-          <div class="mv-dist" id="mv-dist">–</div>
+          <div class="mv-dist" id="mv-dist">â€“</div>
           <div class="mv-street" id="mv-street"></div>
         </div>
       </div>
@@ -229,7 +229,7 @@
     </div>
 
     <div class="drive-top-right">
-      <div id="drive-gps" class="drive-pill">Waiting for GPS…</div>
+      <div id="drive-gps" class="drive-pill">Waiting for GPSâ€¦</div>
       <div id="drive-speed" class="speed-bubble hidden"><span id="drive-speed-val">0</span><small>mph</small></div>
     </div>
 
@@ -262,7 +262,7 @@
     </button>
 
     <div id="drive-offroute" class="drive-banner hidden" role="alert">
-      Off the planned route — head back to the blue line
+      Off the planned route â€” head back to the blue line
     </div>
 
     <div id="drive-eta" class="eta-card">
@@ -276,11 +276,11 @@
       <div class="eta-mid">
         <div class="eta-sim">
           <button id="drive-sim" class="round-btn" title="Simulate the drive" aria-label="Simulate the drive">&#9654;</button>
-          <button id="drive-sim-speed" class="sim-speed" title="Simulation speed">1×</button>
+          <button id="drive-sim-speed" class="sim-speed" title="Simulation speed">1Ã—</button>
         </div>
         <div class="eta-center">
-          <div id="eta-time" class="eta-time">–</div>
-          <div id="eta-sub" class="eta-sub">– min · – mi</div>
+          <div id="eta-time" class="eta-time">â€“</div>
+          <div id="eta-sub" class="eta-sub">â€“ min Â· â€“ mi</div>
         </div>
         <button id="drive-exit" class="round-btn danger" title="End drive" aria-label="End drive">&times;</button>
       </div>
@@ -373,7 +373,7 @@
       <p id="share-status" class="hint" role="status" aria-live="polite"></p>
       <div class="button-row">
         <button id="share-close" class="secondary-btn" type="button">Close</button>
-        <button id="share-send" class="secondary-btn hidden" type="button">Send…</button>
+        <button id="share-send" class="secondary-btn hidden" type="button">Sendâ€¦</button>
         <button id="share-copy" class="primary-btn" type="button">Copy link</button>
       </div>
     </div>
@@ -426,6 +426,9 @@
        mapboxgl.* at load time, so they're safe to load before the GL JS
        library. KPR.app.init() is deferred until mapbox-gl.js has loaded
        (see the bootstrap script below). -->
+  <!-- The Ocean theme's color LUT (data URI); loaded before map.js so the
+       first render has it. -->
+  <script src="js/ocean-lut.js"></script>
   <script src="js/map.js"></script>
   <script src="js/waypoints.js"></script>
   <script src="js/routing.js"></script>
