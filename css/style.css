@@ -210,9 +210,9 @@ h2 .count { font-weight: 600; letter-spacing: 0; }
   color: var(--text-faint);
 }
 
-/* Evaluation setup (beta): the vehicle list that travels with the route.
-   Un-hidden by js/evaluation.js only when the beta switch is on, and hidden
-   again on phone-sized screens (see the max-width:700px block). */
+/* Evaluation setup: the vehicle list that travels with the route. Hidden on
+   phone-sized screens (see the max-width:700px block); routes are set up on a
+   PC/iPad. */
 #eval-setup summary {
   cursor: pointer;
   font-size: 11px;
@@ -1257,7 +1257,7 @@ body.driving .mapboxgl-ctrl-bottom-left { left: 420px; }
 .scene-alert-label { margin-top: 4px; font-size: 18px; font-weight: 700; }
 .scene-alert-notes { margin-top: 6px; font-size: 13.5px; line-height: 1.45; color: #c9ccd2; white-space: pre-wrap; }
 
-/* --- scene rating (beta): Good / Bad buttons inside the alert ------------
+/* --- scene rating: Good / Bad buttons inside the alert -------------------
    They live inside the alert card, so they inherit its placement (docked
    under the turn card on phones). Selected = filled + white ring + a check
    mark, so it never relies on color alone. */
@@ -1290,7 +1290,7 @@ body.driving .mapboxgl-ctrl-bottom-left { left: 420px; }
 .rate-btn[aria-pressed="true"]::after { content: "\2713"; font-size: 18px; font-weight: 800; }
 .scene-rate-status { margin: 8px 0 0; font-size: 12.5px; color: var(--text-muted); }
 
-/* --- vehicle label (beta) ---------------------------------------------- */
+/* --- vehicle label ----------------------------------------------------- */
 
 .drive-vehicle {
   position: absolute;
@@ -1447,7 +1447,7 @@ body.driving .mapboxgl-ctrl-bottom-left { left: 420px; }
 .arrived-actions { margin-top: 18px; }
 .arrived-actions .primary-btn { width: 100%; padding: 12px; background: var(--nav-fill); }
 
-/* Send results (beta). The arrival card and the early-exit prompt get a
+/* Send results. The arrival card and the early-exit prompt get a
    primary "Send" button; "End drive" / "Not now" step back to a quiet
    secondary look only while a Send button is showing. */
 #arrived-send,
@@ -1464,7 +1464,7 @@ body.driving .mapboxgl-ctrl-bottom-left { left: 420px; }
 }
 .arrived-actions .hint { color: var(--text-muted); }
 
-/* Planner card: "Last drive results" (beta). Shown on all screen sizes. */
+/* Planner card: "Last drive results". Shown on all screen sizes. */
 #last-results .lr-summary {
   padding: 10px 12px;
   border: 1px solid var(--line-strong);
@@ -1714,7 +1714,7 @@ body.results-mode .scene-pin-marker { background: #475569 !important; }
   .recenter-pill { bottom: calc(206px + var(--safe-bottom)); }
   body.driving .mapboxgl-ctrl-bottom-left { left: auto; right: 12px; bottom: calc(192px + var(--safe-bottom)); }
 
-  /* Rating buttons and the vehicle label (beta). Smaller buttons and a
+  /* Rating buttons and the vehicle label. Smaller buttons and a
      2-line note keep the docked alert short enough to clear the zoom pill
      and the GPS cluster. The label sits in the free strip above the ETA
      card (--eta-h is published by drive.js). */

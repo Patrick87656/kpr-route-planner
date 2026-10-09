@@ -53,17 +53,12 @@
 
   // ---- planner section ---------------------------------------------------
 
-  test("evaluation: with the beta switch off the section stays hidden; on, it appears", () => {
-    KPR.beta.set(false);
+  test("evaluation: init() shows the setup section", () => {
     $("eval-setup").classList.add("hidden");
-    E.init();
-    assert.ok($("eval-setup").classList.contains("hidden"), "hidden while beta is off");
-    KPR.beta.set(true);
     try {
       E.init();
-      assert.ok(!$("eval-setup").classList.contains("hidden"), "shown while beta is on");
+      assert.ok(!$("eval-setup").classList.contains("hidden"), "shown after init");
     } finally {
-      KPR.beta.set(false);
       $("eval-setup").classList.add("hidden");
     }
   });

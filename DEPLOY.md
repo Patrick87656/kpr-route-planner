@@ -119,25 +119,15 @@ Privacy, in plain terms:
   installed app instead: open the app, tap **Open a shared link**, paste the
   link, tap **Open**.
 
-## Scene ratings beta
+## Scene ratings
 
-Good/Bad scene ratings, the vehicle picker and Send results are ON by default
-for everyone. See the README for the workflow.
+Good/Bad scene ratings, the vehicle picker and Send results are always on for
+everyone. See the README for the workflow.
 
-- **Turn off for one browser:** open the hosted page with `?beta=0` on the end
-  of the address. **Turn back on:** `?beta=1`. The choice is remembered per
-  browser. To hide the features for everyone again, set `DEFAULT_ON` in
-  `js/beta.js` back to `false`.
-- **A browser that was turned off stays off.** Any device where you opened
-  `?beta=0` while testing keeps the features hidden until you open `?beta=1`
-  there, because a stored choice wins over the default.
-- **First open needs a network connection.** A `?beta=1` address is cached
-  separately from the plain address, so the first open with the parameter
-  can't come from the offline cache.
-- **Results links** (`#res=`) open a read-only results view on any device,
-  with no switch needed. They hold the vehicle, evaluator name, route and
-  scene notes in the part after the `#`, so they never reach GitHub Pages,
-  but anyone holding the link can read them.
+- **Results links** (`#res=`) open a read-only results view on any device.
+  They hold the vehicle, evaluator name, route and scene notes in the part
+  after the `#`, so they never reach GitHub Pages, but anyone holding the link
+  can read them.
 - **Roll back:** the `stable-v1` tag is the known-good build. Revert the
   merge commit on `main` and the workflow redeploys it.
 

@@ -62,7 +62,6 @@
   async function withEnv(fn) {
     const store = fakeStorage();
     R.useStorage(store);
-    KPR.beta.set(true);
     const realCopy = KPR.share.copyText;
     const realConfirm = window.confirm;
     const realBuild = KPR.codec.buildResultsLink;
@@ -77,7 +76,6 @@
       window.confirm = realConfirm;
       KPR.codec.buildResultsLink = realBuild;
       R.useStorage(null);
-      KPR.beta.set(false);
       $("send-dialog").classList.add("hidden");
       E.isSendDialogOpen() && document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
       $("last-results").classList.add("hidden");
@@ -366,16 +364,13 @@
     assert.ok(box.querySelector(".lr-date").textContent.length > 0, "date shown");
   });
 
-  test("last results: the card appears from stored data (as after a reload) and only with beta on", async () => {
+  test("last results: the card appears from stored data (as after a reload)", async () => {
     await withEnv(async () => {
       makeSession({ vehicle: "Stored car" });
       E.refreshLastResults();
       assert.ok(!$("last-results").classList.contains("hidden"), "shown");
       assert.ok($("last-results-summary").textContent.includes("Stored car"));
       assert.ok($("last-results-summary").textContent.includes("1 good, 1 bad, 0 not rated"));
-      KPR.beta.set(false);
-      E.refreshLastResults();
-      assert.ok($("last-results").classList.contains("hidden"), "hidden with beta off");
     });
   });
 

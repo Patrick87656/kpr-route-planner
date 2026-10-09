@@ -7,9 +7,9 @@
  * share link), so the evaluator who opens the route on a phone or iPad picks
  * their vehicle from a drop-down instead of typing it.
  *
- * Everything here is behind KPR.beta: the section stays hidden and the drive
- * never asks for a vehicle unless the beta switch is on (see beta.js and the
- * check in drive.js).
+ * The setup section is hidden only on phone-sized screens (routes are set up
+ * on a PC/iPad); the vehicle list still loads with a route, so Start drive on
+ * a phone offers the picker.
  *
  * Vehicle names can come from a file or a link, so they only ever reach the
  * page through .value / .textContent / createElement (no innerHTML).
@@ -104,8 +104,8 @@ KPR.evaluation = (function () {
     _setHint(_countHint(list, cut));
   }
 
-  /** Show the Evaluation setup section (only when the beta switch is on) and
-   * wire its controls. */
+  /** Show the Evaluation setup section and wire its controls. (Hidden only on
+   * phone-sized screens via CSS; routes are set up on a PC/iPad.) */
   function _initSetup() {
     const section = $("eval-setup");
     const box = $("eval-vehicles");
@@ -117,7 +117,7 @@ KPR.evaluation = (function () {
       const btn = $("eval-use-last");
       if (btn) btn.addEventListener("click", useLastList);
     }
-    if (KPR.beta.isOn()) section.classList.remove("hidden");
+    section.classList.remove("hidden");
   }
 
   // ---------------------------------------------------------------------
@@ -489,7 +489,7 @@ KPR.evaluation = (function () {
   }
 
   function _lastSession() {
-    return KPR.beta.isOn() ? KPR.ratings.lastNonEmpty() : null;
+    return KPR.ratings.lastNonEmpty();
   }
 
   /** Show or hide the planner card for the newest stored drive with ratings,

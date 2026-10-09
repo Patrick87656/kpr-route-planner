@@ -83,9 +83,9 @@ KPR.drive = (function () {
   let puck = null;
   let prevMode = "waypoint";
 
-  // Scene ratings (all of this stays idle unless the beta switch was on when
-  // the drive started; see start()).
-  let betaOn = false;        // KPR.beta.isOn(), read once per drive
+  // Scene ratings. `evalActive` is true for the length of a drive (set in
+  // _beginEvaluation, cleared in _endEvaluation); it guards the teardown.
+  let evalActive = false;
   let session = null;        // the on-device rating session for this drive
   let ratingOn = false;      // rating buttons are active for this drive
   let rateState = {};        // caller-owned state for KPR.ratings.pickRateTarget
@@ -319,22 +319,20 @@ KPR.drive = (function () {
     }
     if (KPR.results && KPR.results.isActive()) return;
 
-    // Read once: the switch can't change during a drive.
-    const beta = KPR.beta.isOn();
-    if (beta) {
-      const vehicles = KPR.evaluation.getVehicles();
-      if (vehicles.length >= 1) {
-        // Ask which vehicle first; the drive begins when Start is pressed
-        // (Cancel/Escape leave everything as it was).
-        if (KPR.evaluation.isVehicleDialogOpen()) return;
-        KPR.evaluation.openVehicleDialog(
-          { vehicles, fingerprint: _routeFingerprint(), routeName: _routeName() },
-          (choice) => _begin({ beta: true, vehicle: choice.vehicle, evaluator: choice.evaluator })
-        );
-        return;
-      }
+    // When the route has a vehicle list, ask which vehicle first; the drive
+    // begins when Start is pressed (Cancel/Escape leave everything as it was).
+    const vehicles = KPR.evaluation.getVehicles();
+    if (vehicles.length >= 1) {
+      if (KPR.evaluation.isVehicleDialogOpen()) return;
+      KPR.evaluation.openVehicleDialog(
+        { vehicles, fingerprint: _routeFingerprint(), routeName: _routeName() },
+        (choice) => _begin({ vehicle: choice.vehicle, evaluator: choice.evaluator })
+      );
+      return;
     }
-    _begin({ beta });
+    // No vehicle list: start straight away (evaluation still runs, just
+    // without a vehicle set).
+    _begin({});
   }
 
   function _routeName() {
@@ -346,8 +344,8 @@ KPR.drive = (function () {
     return KPR.ratings.routeFingerprint(KPR.waypoints.getSaveData(), KPR.scenes.getSaveData());
   }
 
-  /** The drive itself. `ctx.beta` says whether the evaluation features are
-   * on; `ctx.vehicle` / `ctx.evaluator` come from the vehicle dialog. */
+  /** The drive itself. `ctx.vehicle` / `ctx.evaluator` come from the vehicle
+   * dialog (absent when the route has no vehicle list). */
   function _begin(ctx) {
     if (active) return;
     if (!canStart()) return;
@@ -380,7 +378,7 @@ KPR.drive = (function () {
     _requestWakeLock();
     _setFollowUi();
     _setVoiceUi();
-    if (ctx.beta) _beginEvaluation(ctx);
+    _beginEvaluation(ctx);
 
     // Start at the beginning of the route until the first GPS fix arrives.
     const p0 = _pointAt(0);
@@ -398,7 +396,7 @@ KPR.drive = (function () {
     _clearResume();
     document.getElementById("drive-recenter-pill").classList.add("hidden");
     _releaseWakeLock();
-    if (betaOn) {
+    if (evalActive) {
       _endEvaluation();
       // The drive just saved is now the newest stored one: show it in the
       // planner's "Last drive results" card.
@@ -426,13 +424,11 @@ KPR.drive = (function () {
     return active;
   }
 
-  // ---- scene ratings (beta) ---------------------------------------------
-  // Everything in this section is reached only when the beta switch was on
-  // at start(); with it off none of it runs.
+  // ---- scene ratings ----------------------------------------------------
 
   /** Set up the vehicle label and the rating session for this drive. */
   function _beginEvaluation(ctx) {
-    betaOn = true;
+    evalActive = true;
     session = null;
     ratingOn = false;
     rateState = {};
@@ -488,12 +484,12 @@ KPR.drive = (function () {
     document.getElementById("drive-vehicle").classList.add("hidden");
     session = null;
     ratingOn = false;
-    betaOn = false;
+    evalActive = false;
     rateState = {};
     rated = new Map();
   }
 
-  // ---- sending results (beta) -------------------------------------------
+  // ---- sending results --------------------------------------------------
 
   /** The stored copy of this drive's session (the one in `session` is only the
    * snapshot from when the drive began), or null. */
@@ -538,9 +534,9 @@ KPR.drive = (function () {
     st.classList.add("hidden");
   }
 
-  /** The × button. With the beta on and at least one rating (and the drive
-   * not yet finished) it asks about sending first; every other case ends the
-   * drive straight away, as it always did. */
+  /** The × button. With at least one rating (and the drive not yet finished)
+   * it asks about sending first; every other case ends the drive straight
+   * away. */
   function requestExit() {
     if (!active) return;
     if (!arrived && _ratedSession()) {
