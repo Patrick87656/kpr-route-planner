@@ -116,8 +116,8 @@
         </div>
       </section>
 
-      <!-- Evaluation setup: only shown with ?beta=1 (see js/beta.js) and not
-           on phone-sized screens. The vehicle list travels with the route. -->
+      <!-- Evaluation setup: the vehicle list that travels with the route.
+           Hidden on phone-sized screens (routes are set up on a PC/iPad). -->
       <details id="eval-setup" class="block hidden">
         <summary>Evaluation setup</summary>
         <label for="eval-vehicles" class="eval-label">Vehicles</label>
@@ -243,7 +243,7 @@
       </div>
       <div id="scene-alert-label" class="scene-alert-label"></div>
       <div id="scene-alert-notes" class="scene-alert-notes"></div>
-      <!-- Good / Bad for this scene (only shown with ?beta=1; see drive.js). -->
+      <!-- Good / Bad for this scene; shown while inside the scene (see drive.js). -->
       <div id="scene-rate" class="scene-rate hidden">
         <button id="rate-good" class="rate-btn good" type="button" aria-pressed="false" aria-label="Rate this scene good">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
@@ -401,8 +401,8 @@
     </div>
   </div>
 
-  <!-- Vehicle picker: shown by Start drive (with ?beta=1) when the route has
-       a vehicle list. Filled in by js/evaluation.js. -->
+  <!-- Vehicle picker: shown by Start drive when the route has a vehicle list.
+       Filled in by js/evaluation.js. -->
   <div id="vehicle-dialog" class="dialog hidden">
     <div class="dialog-box" role="dialog" aria-modal="true" aria-labelledby="vehicle-title">
       <h3 id="vehicle-title">Which vehicle are you in?</h3>
@@ -458,7 +458,6 @@
   <!-- QR encoder (vendored, no CDN) and the share-link codec. -->
   <script src="js/vendor/qrcodegen-v1.8.0-es5.js"></script>
   <script src="js/route-codec.js"></script>
-  <script src="js/beta.js"></script>
   <script src="js/ratings.js"></script>
   <script src="js/search.js"></script>
   <script src="js/storage.js"></script>

@@ -866,19 +866,13 @@
     });
   });
 
-  test("loadFromHash: works with the beta switch off (the viewer has no flag)", async () => {
+  test("loadFromHash: the results viewer works for anyone (no gating)", async () => {
     const hash = await realHash();
-    const was = KPR.beta.isOn();
-    KPR.beta.set(false);
-    try {
-      await withEnv({ scenes: [liveScene(1, 0)] }, async () => {
-        setHash(hash);
-        await RES.loadFromHash();
-        assert.equal(RES.isActive(), true);
-      });
-    } finally {
-      KPR.beta.set(was);
-    }
+    await withEnv({ scenes: [liveScene(1, 0)] }, async () => {
+      setHash(hash);
+      await RES.loadFromHash();
+      assert.equal(RES.isActive(), true);
+    });
   });
 
   test("loadFromHash: a simulated drive shows the TEST banner", async () => {

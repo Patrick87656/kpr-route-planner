@@ -69,16 +69,11 @@ generator (no CDN): `js/vendor/qrcodegen-v1.8.0-es5.js`, from
 https://github.com/nayuki/QR-Code-generator/releases/tag/v1.8.0 (v1.8.0,
 commit `720f62bddb7226106071d4728c292cb1df519ceb`), MIT License.
 
-## Scene ratings (beta)
+## Scene ratings
 
 Evaluators can mark each scene **Good** or **Bad** while driving, pick which
 vehicle they are in, and send the results back to the route's organizer.
-
-**The beta switch.** These features are on by default for everyone. A browser
-can still turn them off for itself with `?beta=0`, and back on with `?beta=1`;
-the choice is stored per browser in localStorage under the key `kprBeta`. To
-hide the features for everyone again, set the single `DEFAULT_ON` constant in
-`js/beta.js` back to `false`.
+These features are always on.
 
 **Workflow.**
 
@@ -101,8 +96,8 @@ hide the features for everyone again, set the single `DEFAULT_ON` constant in
 
 **Storage and privacy.** Ratings stay on the device in localStorage. The last
 20 drives are kept (`kprSessions`); the evaluator name (`kprEvaluator`), the
-last vehicle used per route (`kprLastVehicle`), the vehicle list
-(`kprVehicles`) and the beta switch (`kprBeta`) are remembered too. **Last
+last vehicle used per route (`kprLastVehicle`) and the vehicle list
+(`kprVehicles`) are remembered too. **Last
 drive results** in the planner has a **Delete** button. Nothing is uploaded
 to any server. The results link itself carries the vehicle, the evaluator
 name, the route and the scene notes in the part after the `#`, so anyone who
@@ -131,7 +126,7 @@ Sharing lives in `js/route-codec.js` (builds and strictly validates the link
 payload) and `js/share.js` (Share button, dialog, opening links). The
 vendored QR library is in `js/vendor/`. Automated tests are in `tests/`.
 
-Scene ratings use four more modules: `js/beta.js` (the beta switch),
+Scene ratings use these modules:
 `js/ratings.js` (sessions, ratings and their localStorage storage),
 `js/evaluation.js` (Evaluation setup, vehicle dialog, Send results, Last
 drive results) and `js/results.js` (the read-only results view and CSV). The
@@ -154,6 +149,6 @@ powershell -NoProfile -File tests\run-tests.ps1
 It opens tests/run.html in headless Edge (or Chrome) and prints
 RESULT: PASS or RESULT: FAIL. The tests don't use Mapbox or the network.
 They cover the link codec, storage, sharing, the DOM-safety audit, and the
-scene-ratings modules (`beta`, `ratings`, `results-codec`, `scene-badge`,
+scene-ratings modules (`ratings`, `results-codec`, `scene-badge`,
 `evaluation`, `send-results`, `results`).
 You can also open tests/run.html in a browser to see the report.
