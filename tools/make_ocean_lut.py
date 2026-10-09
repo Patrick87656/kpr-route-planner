@@ -23,14 +23,28 @@ N = 32  # cube size per channel; image is (N*N) wide x N tall
 
 
 def warp(r, g, b):
-    """Map an identity RGB triple (0..1) toward the ocean palette."""
+    """Map an identity RGB triple (0..1) toward Mapbox's Ocean theme.
+
+    Ocean is a dark, nearly-neutral basemap with only a faint cool blue-grey
+    cast (the color in the map comes from the route and POI icons, not the
+    land). So this is a very gentle tint, not a strong blue wash: a slight
+    desaturation toward a cool grey plus a tiny blue lift in the shadows.
+    """
     lum = 0.2126 * r + 0.7152 * g + 0.0722 * b
-    tint = (1.0 - lum) ** 1.2  # strong in shadows/mids, ~0 in highlights
-    tr = r * (1 - 0.55 * tint)              # cut red
-    tg = g * (1 - 0.15 * tint) + 0.10 * tint  # keep some green -> teal
-    tb = b + 0.28 * tint                     # lift blue
+    # Light desaturation only -- the reference keeps real color in the land
+    # (warm taupe) and parks (green), so don't wash it to grey.
+    desat = 0.28
+    gr = r + (lum - r) * desat
+    gg = g + (lum - g) * desat
+    gb = b + (lum - b) * desat
+    # Warm the dark land tones slightly (taupe/brown) and keep a faint cool
+    # lift in the deepest shadows; fades out in highlights so labels stay clean.
+    tint = (1.0 - lum) ** 1.4
+    gr += 0.05 * tint   # warm: lift red a touch
+    gg += 0.015 * tint  # a hair of green so it's taupe, not pink
+    gb += 0.03 * tint   # small blue lift keeps the overall dusk feel
     clamp = lambda v: max(0.0, min(1.0, v))
-    return clamp(tr), clamp(tg), clamp(tb)
+    return clamp(gr), clamp(gg), clamp(gb)
 
 
 def build_png_bytes():

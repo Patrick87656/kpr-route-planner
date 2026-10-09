@@ -279,8 +279,8 @@ KPR.routing = (function () {
           layout: { "line-join": "round", "line-cap": "round" },
           // emissive-strength 1 keeps the line full brightness under the
           // Standard style's dusk lighting (otherwise it renders dimmed).
-          // Cyan reads cleanly over the ocean-blue basemap.
-          paint: { "line-color": "#38e0ff", "line-width": 14, "line-blur": 8, "line-opacity": 0.45, "line-emissive-strength": 1 },
+          // Violet matches Mapbox's Ocean navigation route color.
+          paint: { "line-color": "#8b7cf6", "line-width": 14, "line-blur": 8, "line-opacity": 0.45, "line-emissive-strength": 1 },
         },
         beforeId
       );
@@ -290,7 +290,7 @@ KPR.routing = (function () {
           type: "line",
           source: ROUTE_SOURCE_ID,
           layout: { "line-join": "round", "line-cap": "round" },
-          paint: { "line-color": "#38e0ff", "line-width": 5, "line-opacity": 0.95, "line-emissive-strength": 1 },
+          paint: { "line-color": "#8b7cf6", "line-width": 5, "line-opacity": 0.95, "line-emissive-strength": 1 },
         },
         beforeId
       );
