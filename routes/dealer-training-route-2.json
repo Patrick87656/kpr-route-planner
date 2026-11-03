@@ -1,0 +1,173 @@
+{
+  "formatVersion": 3,
+  "name": "Dealer Training Route 2",
+  "savedAt": "2026-10-19T16:47:16.879Z",
+  "waypoints": [
+    {
+      "lat": 32.884443347196935,
+      "lng": -117.22139508232996,
+      "name": "Genesee Avenue",
+      "detail": "San Diego, California 92121"
+    },
+    {
+      "lat": 32.88231852129242,
+      "lng": -117.22009046246288,
+      "name": "Genesee Avenue",
+      "detail": "San Diego, California 92121"
+    },
+    {
+      "lat": 32.884523003440336,
+      "lng": -117.22215890766682,
+      "name": "Voigt Drive",
+      "detail": "San Diego, California 92037"
+    },
+    {
+      "lat": 32.887132069255145,
+      "lng": -117.22672541556064,
+      "name": "Genesee Avenue",
+      "detail": "San Diego, California 92037"
+    },
+    {
+      "lat": 32.88927952584356,
+      "lng": -117.23326084093257,
+      "name": "Genesee Avenue",
+      "detail": "San Diego, California 92121"
+    },
+    {
+      "lat": 32.89493781187306,
+      "lng": -117.24118279233309,
+      "name": "North Torrey Pines Road",
+      "detail": "San Diego, California 92121"
+    },
+    {
+      "lat": 32.94011812614619,
+      "lng": -117.26096411168896,
+      "name": "West Ocean View Avenue",
+      "detail": "Del Mar, California 92014"
+    },
+    {
+      "lat": 32.931799093145244,
+      "lng": -117.24184706775291,
+      "name": "Carmel Valley Road",
+      "detail": "San Diego, California 92121"
+    },
+    {
+      "lat": 32.8876210950791,
+      "lng": -117.2284559028537,
+      "name": "Genesee Avenue",
+      "detail": "San Diego, California 92121"
+    },
+    {
+      "lat": 32.88222084744588,
+      "lng": -117.22044440214941,
+      "name": "Genesee Avenue",
+      "detail": "La Jolla, California 92121"
+    }
+  ],
+  "routeSummary": {
+    "distanceMeters": 17442.094,
+    "durationSeconds": 1408.361
+  },
+  "scenes": [
+    {
+      "type": "Braking",
+      "typeLabel": "Braking",
+      "label": "Smooth Stop",
+      "notes": "",
+      "startIdx": 12,
+      "endIdx": 16,
+      "startLat": 32.882613,
+      "startLng": -117.219835,
+      "endLat": 32.882232,
+      "endLng": -117.220034
+    },
+    {
+      "type": "Braking",
+      "typeLabel": "Braking",
+      "label": "One Pedal Scene",
+      "notes": "",
+      "startIdx": 370,
+      "endIdx": 372,
+      "startLat": 32.888124,
+      "startLng": -117.22839,
+      "endLat": 32.887632,
+      "endLng": -117.228538
+    },
+    {
+      "type": "NVH",
+      "typeLabel": "NVH",
+      "label": "Powertrain Noise Isolation",
+      "notes": "",
+      "startIdx": 118,
+      "endIdx": 146,
+      "startLat": 32.901584,
+      "startLng": -117.242571,
+      "endLat": 32.91015,
+      "endLng": -117.244385
+    },
+    {
+      "type": "NVH",
+      "typeLabel": "NVH",
+      "label": "General NVH - Road Noise, Powertrain",
+      "notes": "",
+      "startIdx": 154,
+      "endIdx": 182,
+      "startLat": 32.913397,
+      "startLng": -117.245159,
+      "endLat": 32.927478,
+      "endLng": -117.258343
+    },
+    {
+      "type": "Braking",
+      "typeLabel": "Braking",
+      "label": "One Pedal Scene",
+      "notes": "",
+      "startIdx": 216,
+      "endIdx": 224,
+      "startLat": 32.939824,
+      "startLng": -117.261127,
+      "endLat": 32.940136,
+      "endLng": -117.260864
+    },
+    {
+      "type": "Powertrain",
+      "typeLabel": "Powertrain",
+      "label": "Highway Merge Scene",
+      "notes": "",
+      "startIdx": 308,
+      "endIdx": 312,
+      "startLat": 32.931907,
+      "startLng": -117.241893,
+      "endLat": 32.929599,
+      "endLng": -117.240888
+    },
+    {
+      "type": "NVH",
+      "typeLabel": "NVH",
+      "label": "Highway Road Noise, Wind Noise",
+      "notes": "",
+      "startIdx": 317,
+      "endIdx": 341,
+      "startLat": 32.926641,
+      "startLng": -117.239985,
+      "endLat": 32.91288,
+      "endLng": -117.229464
+    },
+    {
+      "type": "Powertrain",
+      "typeLabel": "Powertrain",
+      "label": "Highway Reacceleration",
+      "notes": "",
+      "startIdx": 342,
+      "endIdx": 358,
+      "startLat": 32.908429,
+      "startLng": -117.226751,
+      "endLat": 32.897456,
+      "endLng": -117.225818
+    }
+  ],
+  "vehicles": [
+    "Nissan Rogue Hybrid",
+    "Toyota RAV4 Hybrid"
+  ]
+}

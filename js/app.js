@@ -251,6 +251,7 @@ KPR.app = (function () {
     KPR.storage.init();
     KPR.share.init();
     KPR.openLink.init();
+    KPR.browseRoutes.init();
     KPR.evaluation.init();
     KPR.search.init();
     KPR.drive.init();

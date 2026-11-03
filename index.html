@@ -140,6 +140,7 @@
       </button>
       <button id="load-route" class="secondary-btn" title="Load route file" aria-label="Load route file">&#8682; Load</button>
       <input id="load-route-input" type="file" accept="application/json" hidden>
+      <button id="browse-routes" class="secondary-btn" type="button" title="Browse saved routes" aria-label="Browse saved routes">&#8615; Browse</button>
     </footer>
 
     <!-- Results view: shown INSTEAD of the planner header/body/footer while a
@@ -401,6 +402,21 @@
     </div>
   </div>
 
+  <!-- Browse saved routes: list the published route library (routes/index.json)
+       and load a chosen route through the same pipeline a file Load uses.
+       Handled by js/browse-routes.js. -->
+  <div id="browse-dialog" class="dialog hidden">
+    <div class="dialog-box" role="dialog" aria-modal="true" aria-labelledby="browse-title">
+      <h3 id="browse-title">Browse saved routes</h3>
+      <p class="hint">Pick a published route to load it into the planner.</p>
+      <p id="browse-msg" class="hint browse-msg hidden" role="status" aria-live="polite"></p>
+      <ul id="browse-list" class="item-list browse-list"></ul>
+      <div class="button-row">
+        <button id="browse-close" class="secondary-btn" type="button">Close</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Vehicle picker: shown by Start drive when the route has a vehicle list.
        Filled in by js/evaluation.js. -->
   <div id="vehicle-dialog" class="dialog hidden">
@@ -467,6 +483,7 @@
   <script src="js/drive.js"></script>
   <script src="js/results.js"></script>
   <script src="js/sheet.js"></script>
+  <script src="js/browse-routes.js"></script>
   <script src="js/app.js"></script>
 
   <!-- Load Mapbox GL JS, then boot the app once it's ready. If the token is

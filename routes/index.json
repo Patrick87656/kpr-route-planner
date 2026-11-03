@@ -1,0 +1,19 @@
+{
+  "routes": [
+    {
+      "file": "dealer-training-route-2.json",
+      "name": "Dealer Training Route 2",
+      "start": "Genesee Avenue, San Diego, California 92121",
+      "end": "Genesee Avenue, La Jolla, California 92121",
+      "distanceMeters": 17442.094,
+      "durationSeconds": 1408.361,
+      "waypointCount": 10,
+      "sceneCount": 8,
+      "vehicles": [
+        "Nissan Rogue Hybrid",
+        "Toyota RAV4 Hybrid"
+      ],
+      "date": "2026-10-19T16:47:16.879Z"
+    }
+  ]
+}
