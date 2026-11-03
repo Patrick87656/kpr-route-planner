@@ -47,12 +47,24 @@ KPR.waypoints = (function () {
       addWaypoint(e.lngLat.lat, e.lngLat.lng);
     });
 
-    document.getElementById("clear-waypoints").addEventListener("click", () => {
-      if (waypoints.length === 0) return;
-      const ok = window.confirm("Remove all waypoints and the current route? This cannot be undone.");
-      if (!ok) return;
-      clearAll();
+    document.getElementById("clear-waypoints").addEventListener("click", (e) => {
+      // The button lives inside the Itinerary <summary>; keep its click from
+      // toggling the <details> open/closed (same stopPropagation pattern the
+      // itinerary remove buttons use).
+      e.stopPropagation();
+      confirmClearAll();
     });
+  }
+
+  /** The single clear-and-confirm path. Both the "Clear all" button and the
+   * "New route" chooser card call this, so the confirm wording and the
+   * clearAll() route live in exactly one place. No-op when there's nothing
+   * to clear. */
+  function confirmClearAll() {
+    if (waypoints.length === 0) return;
+    const ok = window.confirm("Remove all waypoints and the current route? This cannot be undone.");
+    if (!ok) return;
+    clearAll();
   }
 
   function _buildBadgeElement(number) {
@@ -246,6 +258,7 @@ KPR.waypoints = (function () {
     addWaypoint,
     removeWaypoint,
     clearAll,
+    confirmClearAll,
     getOrderedLatLngs,
     getAll,
     count,

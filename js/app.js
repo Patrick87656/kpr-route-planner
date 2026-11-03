@@ -160,6 +160,10 @@ KPR.app = (function () {
 
     // Share needs at least 2 stops; keep its enabled look in step.
     if (KPR.share) KPR.share.syncButton();
+
+    // Collapse the "Start with" chooser once there are stops, expand it when
+    // the route is emptied — same signal that just updated the count above.
+    if (KPR.startChooser) KPR.startChooser.sync();
   }
 
   function _refreshSceneList() {
@@ -252,6 +256,7 @@ KPR.app = (function () {
     KPR.share.init();
     KPR.openLink.init();
     KPR.browseRoutes.init();
+    KPR.startChooser.init();
     KPR.evaluation.init();
     KPR.search.init();
     KPR.drive.init();

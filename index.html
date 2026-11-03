@@ -46,6 +46,32 @@
 
     <div id="panel-body">
 
+      <!-- "Start with" chooser: two choice cards when the route is empty, a
+           slim bar once it has stops. Browse library / New route are wired in
+           js/start-chooser.js; the shared-link row holds the relocated
+           #open-link-btn (still wired by js/open-link.js). -->
+      <section id="start-chooser" class="block">
+        <div class="chooser-cards">
+          <button id="chooser-browse" class="chooser-card chooser-card-primary" type="button">
+            <span class="chooser-card-title">Browse library</span>
+            <span class="chooser-card-sub">Open a saved route</span>
+          </button>
+          <button id="chooser-new" class="chooser-card chooser-card-secondary" type="button">
+            <span class="chooser-card-title">New route</span>
+            <span class="chooser-card-sub">Start from scratch</span>
+          </button>
+        </div>
+        <div class="chooser-secondary-row">
+          <!-- Scanning a QR or tapping a link opens the browser, not the
+               installed app. This lets someone paste the link here instead. -->
+          <button id="open-link-btn" class="text-btn open-link-btn" type="button">&#128279; Open a shared link</button>
+        </div>
+        <div class="chooser-bar">
+          <button id="chooser-browse-compact" class="secondary-btn" type="button">Browse library</button>
+          <button id="chooser-new-compact" class="secondary-btn" type="button">New route</button>
+        </div>
+      </section>
+
       <section class="block">
         <div id="search-row">
           <span class="search-icon" aria-hidden="true">&#9906;</span>
@@ -61,9 +87,6 @@
           <button id="mode-scene" class="mode-btn" data-mode="scene" role="tab">&#9703; Tag Scene</button>
         </div>
         <p class="hint" id="mode-hint">Click the map to add waypoints in order.</p>
-        <!-- Scanning a QR or tapping a link opens the browser, not the
-             installed app. This lets someone paste the link here instead. -->
-        <button id="open-link-btn" class="text-btn open-link-btn" type="button">&#128279; Open a shared link</button>
       </section>
 
       <section class="block">
@@ -84,24 +107,24 @@
         </div>
       </section>
 
-      <section class="block">
-        <div class="section-head">
+      <details class="block" open>
+        <summary class="section-head">
           <h2>Itinerary <span class="count" id="waypoint-count">(0)</span></h2>
           <button id="clear-waypoints" class="text-btn danger">Clear all</button>
-        </div>
+        </summary>
         <ol id="waypoint-list" class="timeline"></ol>
         <p class="hint empty-hint" id="itinerary-empty">No stops yet. Click the map or add a search result.</p>
-      </section>
+      </details>
 
-      <section class="block">
-        <div class="section-head">
+      <details class="block" open>
+        <summary class="section-head">
           <h2>Eval Scenes <span class="count" id="scene-count">(0)</span></h2>
-        </div>
+        </summary>
         <ol id="scene-list" class="scene-cards"></ol>
         <p class="hint empty-hint" id="scenes-empty">Switch to Tag Scene, then click two points on the route.</p>
         <h2 class="legend-heading">Category colors</h2>
         <ul id="scene-legend" class="legend-list"></ul>
-      </section>
+      </details>
 
       <!-- Last drive results (beta): the newest stored drive with ratings, so it
            can be sent from this device. Shown on phones too. Filled in by
@@ -118,7 +141,7 @@
 
       <!-- Evaluation setup: the vehicle list that travels with the route.
            Hidden on phone-sized screens (routes are set up on a PC/iPad). -->
-      <details id="eval-setup" class="block hidden">
+      <details id="eval-setup" class="block hidden" open>
         <summary>Evaluation setup</summary>
         <label for="eval-vehicles" class="eval-label">Vehicles</label>
         <textarea id="eval-vehicles" rows="5" spellcheck="false" placeholder="Example Sedan A&#10;Example SUV B"></textarea>
@@ -140,7 +163,6 @@
       </button>
       <button id="load-route" class="secondary-btn" title="Load route file" aria-label="Load route file">&#8682; Load</button>
       <input id="load-route-input" type="file" accept="application/json" hidden>
-      <button id="browse-routes" class="secondary-btn" type="button" title="Browse saved routes" aria-label="Browse saved routes">&#8615; Browse</button>
     </footer>
 
     <!-- Results view: shown INSTEAD of the planner header/body/footer while a
@@ -484,6 +506,7 @@
   <script src="js/results.js"></script>
   <script src="js/sheet.js"></script>
   <script src="js/browse-routes.js"></script>
+  <script src="js/start-chooser.js"></script>
   <script src="js/app.js"></script>
 
   <!-- Load Mapbox GL JS, then boot the app once it's ready. If the token is
