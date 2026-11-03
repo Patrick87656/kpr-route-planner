@@ -180,9 +180,12 @@ KPR.browseRoutes = (function () {
   }
 
   function init() {
+    // The dialog is opened both from the start chooser (KPR.browseRoutes.open())
+    // and, when present, a trigger button. The close/backdrop/Escape handlers
+    // must bind regardless of whether a trigger element exists, or the dialog
+    // can be opened but never closed.
     const trigger = $("browse-routes");
-    if (!trigger) return;
-    trigger.addEventListener("click", open);
+    if (trigger) trigger.addEventListener("click", open);
     $("browse-close").addEventListener("click", close);
     $("browse-dialog").addEventListener("click", (e) => {
       if (e.target === $("browse-dialog")) close(); // backdrop, not the box
