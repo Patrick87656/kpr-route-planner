@@ -34,9 +34,10 @@ jobs:
           set -euo pipefail
 
           # Only the files the app needs -- not samples/, data/, docs, etc.
+          # routes/ is the published shared-route library the Browse panel fetches.
           mkdir _site
           cp index.html manifest.webmanifest service-worker.js _site/
-          cp -r css js icons _site/
+          cp -r css js icons routes _site/
 
           # Token -> config.local.js. Refuse anything that isn't a public
           # pk.* token so a typo (or a secret sk.* token) never ships.
