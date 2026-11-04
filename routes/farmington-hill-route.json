@@ -1,0 +1,78 @@
+{
+  "formatVersion": 3,
+  "name": "Farmington Hill Route",
+  "savedAt": "2026-11-03T19:27:42.717Z",
+  "waypoints": [
+    {
+      "lat": 42.495315960940275,
+      "lng": -83.42524605359434,
+      "name": "Country Club Drive",
+      "detail": "Farmington Hills, Michigan 48331"
+    },
+    {
+      "lat": 42.4972526436477,
+      "lng": -83.42634178022841,
+      "name": "West 12 Mile Road",
+      "detail": "Farmington Hills, Michigan 48331"
+    },
+    {
+      "lat": 42.49806883544716,
+      "lng": -83.39811910148978,
+      "name": "West 12 Mile Road",
+      "detail": "Farmington Hills, Michigan 48331"
+    },
+    {
+      "lat": 42.49782560128983,
+      "lng": -83.4171781799612,
+      "name": "West 12 Mile Road",
+      "detail": "Farmington Hills, Michigan 48331"
+    },
+    {
+      "lat": 42.52662952342067,
+      "lng": -83.41881288780684,
+      "name": "Halsted Road",
+      "detail": "Farmington Hills, Michigan 48331"
+    },
+    {
+      "lat": 42.52695959009958,
+      "lng": -83.44490848416385,
+      "name": "West 14 Mile Road",
+      "detail": "Commerce Charter Township, Michigan 48390"
+    },
+    {
+      "lat": 42.54314445676877,
+      "lng": -83.451770315849,
+      "name": "Haggerty Connector",
+      "detail": "Commerce Charter Township, Michigan 48390"
+    },
+    {
+      "lat": 42.496662432257324,
+      "lng": -83.44915303167566,
+      "name": "West 12 Mile Road",
+      "detail": "Novi, Michigan 48377"
+    },
+    {
+      "lat": 42.496849202184166,
+      "lng": -83.43632544176971,
+      "name": "West 12 Mile Road",
+      "detail": "Novi, Michigan 48377"
+    },
+    {
+      "lat": 42.494622371602134,
+      "lng": -83.43519485377001,
+      "name": "Country Club Drive",
+      "detail": "Farmington Hills, Michigan 48331"
+    },
+    {
+      "lat": 42.49541374533959,
+      "lng": -83.42625561124413,
+      "name": "Country Club Drive",
+      "detail": "Farmington Hills, Michigan 48331"
+    }
+  ],
+  "routeSummary": {
+    "distanceMeters": 19125.666,
+    "durationSeconds": 1568.969
+  },
+  "scenes": []
+}
