@@ -5,7 +5,7 @@ same features as the free Leaflet/OpenStreetMap version in the sibling
 `KPR Route Planner` folder, but rendered with Mapbox's GPU vector-tile maps:
 
 - Mapbox GL JS for the map (vector tiles, smooth zoom, polished default
-  styles — Streets / Satellite Streets toggle)
+  styles — Ocean / Day toggle)
 - Mapbox **Directions API** for road-snapped routing, in fixed waypoint
   order (there's no "optimize my stops" option on this endpoint at all —
   coordinates are always visited in the order given)

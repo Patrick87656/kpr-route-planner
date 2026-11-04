@@ -546,7 +546,7 @@
     });
   });
 
-  test("style reload (Satellite swap) rebuilds the wiped overlay and raises it above the scene layers", async () => {
+  test("style reload (full style swap) rebuilds the wiped overlay and raises it above the scene layers", async () => {
     await withEnv({ scenes: [liveScene(1, 0)] }, async (ctx) => {
       RES.enter(makeResults());
       ctx.map.wipe(); // setStyle() throws every custom layer away
