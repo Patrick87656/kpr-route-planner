@@ -80,6 +80,28 @@ self.addEventListener("fetch", (event) => {
   // the network, never cached here.
   if (!sameOrigin) return;
 
+  // The published route library (routes/index.json and each route file) changes
+  // whenever a route is added or removed, WITHOUT a new app deploy changing the
+  // cache version. Cache-first would keep showing the old list, so ask the
+  // network first and only fall back to the cached copy when offline.
+  // cache: "no-cache" makes the browser revalidate with the server (a cheap 304
+  // when unchanged) instead of answering from its HTTP cache -- GitHub Pages
+  // sends max-age=600, which would otherwise hide a new route for ~10 minutes.
+  if (url.pathname.includes("/routes/")) {
+    event.respondWith(
+      fetch(req, { cache: "no-cache" })
+        .then((res) => {
+          if (res && res.ok) {
+            const copy = res.clone();
+            caches.open(CACHE_VERSION).then((cache) => cache.put(req, copy));
+          }
+          return res;
+        })
+        .catch(() => caches.match(req))
+    );
+    return;
+  }
+
   // App shell: serve from cache first for instant loads, fall back to the
   // network, and refresh the cache copy in the background when online.
   event.respondWith(
