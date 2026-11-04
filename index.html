@@ -488,6 +488,9 @@
   <!-- The Ocean theme's color LUT (data URI); loaded before map.js so the
        first render has it. -->
   <script src="js/ocean-lut.js"></script>
+  <!-- Shared geolocation-permission module; loaded before map.js, whose
+       init() registers a requester with it and starts tracking the state. -->
+  <script src="js/geo-permission.js"></script>
   <script src="js/map.js"></script>
   <script src="js/waypoints.js"></script>
   <script src="js/routing.js"></script>

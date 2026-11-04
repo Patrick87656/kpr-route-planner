@@ -134,6 +134,8 @@
   </div>
 
   <script src="harness.js"></script>
+  <!-- Mapbox-free; map.js/drive.js stay out of the harness (they need Mapbox). -->
+  <script src="../js/geo-permission.js"></script>
   <script src="../js/waypoints.js"></script>
   <script src="../js/scenes.js"></script>
   <script src="../js/vendor/qrcodegen-v1.8.0-es5.js"></script>
@@ -162,5 +164,6 @@
   <script src="open-link.test.js"></script>
   <script src="browse-routes.test.js"></script>
   <script src="start-chooser.test.js"></script>
+  <script src="geo-permission.test.js"></script>
 </body>
 </html>

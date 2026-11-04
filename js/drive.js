@@ -711,8 +711,7 @@ KPR.drive = (function () {
         if (simTimer) return;
         if (err.code === err.PERMISSION_DENIED) {
           // Tell people where the switch actually lives on their device.
-          const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-            (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1); // iPadOS reports as Mac
+          const ios = KPR.geoPermission.isIOS(); // iPadOS reports as Mac
           _setGps(
             ios
               ? "Location blocked · Settings › Privacy › Location Services › Safari Websites"
