@@ -131,6 +131,19 @@
         <button id="vehicle-start" type="button" disabled>Start</button>
       </div>
     </div>
+
+    <!-- Footer strip for the "Enable location" tests, same ids/classes as
+         index.html's #panel-footer: the strip (button + help region) above a
+         #start-drive stub. -->
+    <footer id="panel-footer">
+      <div id="enable-location" class="enable-location hidden">
+        <button id="enable-location-btn" class="enable-location-btn" type="button">
+          <span id="enable-location-label">Enable location</span>
+        </button>
+        <div id="enable-location-help" class="enable-location-help hidden" role="region" aria-live="polite"></div>
+      </div>
+      <button id="start-drive" class="drive-btn" type="button">Start drive</button>
+    </footer>
   </div>
 
   <script src="harness.js"></script>
@@ -147,6 +160,7 @@
   <script src="../js/open-link.js"></script>
   <script src="../js/browse-routes.js"></script>
   <script src="../js/start-chooser.js"></script>
+  <script src="../js/enable-location-strip.js"></script>
   <script src="../js/app.js"></script>
   <script src="../js/results.js"></script>
   <script src="fixtures/route-fixtures.js"></script>
@@ -165,5 +179,6 @@
   <script src="browse-routes.test.js"></script>
   <script src="start-chooser.test.js"></script>
   <script src="geo-permission.test.js"></script>
+  <script src="enable-location.test.js"></script>
 </body>
 </html>

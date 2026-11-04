@@ -260,6 +260,7 @@ KPR.app = (function () {
     KPR.evaluation.init();
     KPR.search.init();
     KPR.drive.init();
+    KPR.enableLocationStrip.init();
     KPR.results.init();
     KPR.sheet.init();
 

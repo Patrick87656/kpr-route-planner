@@ -152,6 +152,18 @@
     </div>
 
     <footer id="panel-footer">
+      <!-- "Enable location" strip: only shown when the browser's geolocation
+           permission is 'prompt' or 'denied' (js/enable-location-strip.js
+           toggles it via KPR.geoPermission). In 'prompt' the button triggers
+           the native popup; in 'denied' it reveals device-specific re-enable
+           steps instead (the browser can't be re-prompted once denied). -->
+      <div id="enable-location" class="enable-location hidden">
+        <button id="enable-location-btn" class="enable-location-btn" type="button">
+          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z" fill="currentColor"/></svg>
+          <span id="enable-location-label">Enable location</span>
+        </button>
+        <div id="enable-location-help" class="enable-location-help hidden" role="region" aria-live="polite"></div>
+      </div>
       <button id="start-drive" class="drive-btn">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 17-7-4-7 4z" fill="currentColor"/></svg>
         Start drive
@@ -505,6 +517,9 @@
   <script src="js/open-link.js"></script>
   <script src="js/evaluation.js"></script>
   <script src="js/drive.js"></script>
+  <!-- "Enable location" strip above Start drive; reacts to KPR.geoPermission
+       and triggers the native prompt (or shows re-enable steps when denied). -->
+  <script src="js/enable-location-strip.js"></script>
   <script src="js/results.js"></script>
   <script src="js/sheet.js"></script>
   <script src="js/browse-routes.js"></script>
