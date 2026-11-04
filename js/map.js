@@ -1,6 +1,6 @@
 /**
  * map.js — base Mapbox GL JS map setup: the map instance and the
- * Ocean / Day / Satellite style switcher. Exposes a small KPR.map namespace
+ * Ocean / Day style switcher. Exposes a small KPR.map namespace
  * other modules use.
  *
  * Mapbox GL renders vector tiles on the GPU (not raster image tiles like
@@ -14,8 +14,9 @@
  * and configurable lighting/color (the look in Mapbox's in-car navigation).
  * Ocean = dusk light + monochrome theme + blue-teal color overrides; Day =
  * the day light preset. Switching between them only re-applies the Standard
- * basemap config, so the route and scene layers stay put. Satellite is a
- * separate style and needs a full style swap.
+ * basemap config, so the route and scene layers stay put. (A Satellite option
+ * that needed a full style swap was removed -- see the STYLES map below -- but
+ * the full-swap code path is kept for when it returns.)
  *
  * Layout note: the map is full-screen and the planner panel floats over its
  * left side. `setPadding` tells Mapbox that strip is covered, so fitBounds,
@@ -63,7 +64,12 @@ KPR.map = (function () {
     // not when this object is first created.
     ocean: { url: STANDARD_URL, get basemapConfig() { return _oceanConfig(); } },
     day: { url: STANDARD_URL, basemapConfig: { lightPreset: "day" } },
-    satellite: { url: "mapbox://styles/mapbox/satellite-streets-v12" },
+    // A Satellite option (mapbox://styles/mapbox/satellite-streets-v12) used to
+    // live here, but this account's token is not entitled to the satellite
+    // raster tiles API (every tile request returns HTTP 429), so the imagery
+    // never loaded. Removed until the Mapbox account can serve those tiles; the
+    // style-swap machinery below (setStyleKey's full-style-swap branch,
+    // onStyleReload) is kept intact so re-adding it later is a one-line change.
   };
   const DEFAULT_STYLE = "ocean";
 
@@ -249,8 +255,8 @@ KPR.map = (function () {
   }
 
   /** Apply the current style's Standard config (light preset, theme, and any
-   * color overrides). Satellite is a separate style with no basemap config,
-   * so it has none and this is a no-op for it. Each property is set
+   * color overrides). A style with no basemap config (e.g. a future full-swap
+   * style) simply has none and this is a no-op for it. Each property is set
    * independently so one unsupported key can't block the rest. */
   function _applyBasemapConfig() {
     const cfg = STYLES[currentStyleKey].basemapConfig;
@@ -345,8 +351,8 @@ KPR.map = (function () {
   };
 
   /** Switch to one of the STYLES keys. Ocean <-> Day only re-applies the
-   * Standard basemap config; anything involving Satellite swaps the whole
-   * style (which fires style.load and re-applies config there). */
+   * Standard basemap config; switching to a style with a different url swaps
+   * the whole style (which fires style.load and re-applies config there). */
   function setStyleKey(key) {
     const next = STYLES[key];
     if (!next || key === currentStyleKey) return;
