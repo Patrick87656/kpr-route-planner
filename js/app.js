@@ -259,7 +259,9 @@ KPR.app = (function () {
     KPR.startChooser.init();
     KPR.evaluation.init();
     KPR.search.init();
+    KPR.geoDialog.init();
     KPR.drive.init();
+    KPR.enableLocationStrip.init();
     KPR.results.init();
     KPR.sheet.init();
 

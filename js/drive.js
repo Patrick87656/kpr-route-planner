@@ -319,6 +319,27 @@ KPR.drive = (function () {
     }
     if (KPR.results && KPR.results.isActive()) return;
 
+    // Location backstop: if permission isn't granted, explain and offer to
+    // turn it on FIRST, then always continue the normal start flow. The dialog
+    // never blocks the drive (Allow, Not now, Escape and backdrop all continue
+    // via the onDone callback). When already granted, fall straight through.
+    if (
+      KPR.geoPermission &&
+      KPR.geoPermission.getState() !== "granted" &&
+      KPR.geoDialog &&
+      !KPR.geoDialog.isOpen()
+    ) {
+      KPR.geoDialog.open(() => _continueStart());
+      return;
+    }
+
+    _continueStart();
+  }
+
+  /** The original body of start(): ask for a vehicle when the route has a
+   * list, otherwise begin straight away. Reached directly when permission is
+   * already granted, or via the geo-dialog's onDone once the user responds. */
+  function _continueStart() {
     // When the route has a vehicle list, ask which vehicle first; the drive
     // begins when Start is pressed (Cancel/Escape leave everything as it was).
     const vehicles = KPR.evaluation.getVehicles();
@@ -711,8 +732,7 @@ KPR.drive = (function () {
         if (simTimer) return;
         if (err.code === err.PERMISSION_DENIED) {
           // Tell people where the switch actually lives on their device.
-          const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-            (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1); // iPadOS reports as Mac
+          const ios = KPR.geoPermission.isIOS(); // iPadOS reports as Mac
           _setGps(
             ios
               ? "Location blocked · Settings › Privacy › Location Services › Safari Websites"

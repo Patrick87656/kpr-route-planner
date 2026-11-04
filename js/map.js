@@ -166,6 +166,12 @@ KPR.map = (function () {
     map.addControl(geolocate, "bottom-right");
     geolocateControl = geolocate;
 
+    // Give the shared permission module a way to ask for location (it only
+    // ever fires this when the browser will actually prompt) and let it start
+    // tracking the permission state so the UI can react to it live.
+    KPR.geoPermission.setRequester(() => geolocate.trigger());
+    KPR.geoPermission.init();
+
     // A fully open sheet covers ~90% of a phone screen, so the dot would
     // land behind it. Like Google Maps, tapping locate brings a fully open
     // sheet down to half height so you can see where you are.
@@ -424,6 +430,12 @@ KPR.map = (function () {
     if (geolocateControl && locateActive) geolocateControl.trigger();
   }
 
+  /** Ask the browser for location via the shared permission module. Only
+   * prompts when the state is 'prompt'; returns whether a prompt was fired. */
+  function requestLocation() {
+    return KPR.geoPermission.requestLocation();
+  }
+
   return {
     init,
     getMap,
@@ -435,5 +447,6 @@ KPR.map = (function () {
     setStyleKey,
     getStyleKey,
     stopLocate,
+    requestLocation,
   };
 })();
