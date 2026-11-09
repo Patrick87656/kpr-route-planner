@@ -14,6 +14,18 @@
         "Toyota RAV4 Hybrid"
       ],
       "date": "2026-10-19T16:47:16.879Z"
+    },
+    {
+      "file": "farmington-hills-route-updated.json",
+      "name": "Farmington Hills Route - Updated",
+      "start": "Country Club Drive, Farmington Hills, Michigan 48331",
+      "end": "Country Club Drive, Farmington Hills, Michigan 48331",
+      "distanceMeters": 19125.666,
+      "durationSeconds": 1563.343,
+      "waypointCount": 11,
+      "sceneCount": 6,
+      "vehicles": [],
+      "date": "2026-11-09T19:17:47.039Z"
     }
   ]
 }
