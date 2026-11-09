@@ -1,0 +1,151 @@
+{
+  "formatVersion": 3,
+  "name": "Farmington Hills Route - Updated",
+  "savedAt": "2026-11-09T19:17:47.039Z",
+  "waypoints": [
+    {
+      "lat": 42.495315960940275,
+      "lng": -83.42524605359434,
+      "name": "Country Club Drive",
+      "detail": "Farmington Hills, Michigan 48331"
+    },
+    {
+      "lat": 42.4972526436477,
+      "lng": -83.42634178022841,
+      "name": "West 12 Mile Road",
+      "detail": "Farmington Hills, Michigan 48331"
+    },
+    {
+      "lat": 42.49806883544716,
+      "lng": -83.39811910148978,
+      "name": "West 12 Mile Road",
+      "detail": "Farmington Hills, Michigan 48331"
+    },
+    {
+      "lat": 42.49782560128983,
+      "lng": -83.4171781799612,
+      "name": "West 12 Mile Road",
+      "detail": "Farmington Hills, Michigan 48331"
+    },
+    {
+      "lat": 42.52662952342067,
+      "lng": -83.41881288780684,
+      "name": "Halsted Road",
+      "detail": "Farmington Hills, Michigan 48331"
+    },
+    {
+      "lat": 42.52695959009958,
+      "lng": -83.44490848416385,
+      "name": "West 14 Mile Road",
+      "detail": "Commerce Charter Township, Michigan 48390"
+    },
+    {
+      "lat": 42.54314445676877,
+      "lng": -83.451770315849,
+      "name": "Haggerty Connector",
+      "detail": "Commerce Charter Township, Michigan 48390"
+    },
+    {
+      "lat": 42.496662432257324,
+      "lng": -83.44915303167566,
+      "name": "West 12 Mile Road",
+      "detail": "Novi, Michigan 48377"
+    },
+    {
+      "lat": 42.496849202184166,
+      "lng": -83.43632544176971,
+      "name": "West 12 Mile Road",
+      "detail": "Novi, Michigan 48377"
+    },
+    {
+      "lat": 42.494622371602134,
+      "lng": -83.43519485377001,
+      "name": "Country Club Drive",
+      "detail": "Farmington Hills, Michigan 48331"
+    },
+    {
+      "lat": 42.49541374533959,
+      "lng": -83.42625561124413,
+      "name": "Country Club Drive",
+      "detail": "Farmington Hills, Michigan 48331"
+    }
+  ],
+  "routeSummary": {
+    "distanceMeters": 19125.666,
+    "durationSeconds": 1563.343
+  },
+  "scenes": [
+    {
+      "type": "Ride Comfort",
+      "typeLabel": "Ride Comfort",
+      "label": "Rough road - 12 Mile",
+      "notes": "",
+      "startIdx": 37,
+      "endIdx": 69,
+      "startLat": 42.497593,
+      "startLng": -83.417233,
+      "endLat": 42.497919,
+      "endLng": -83.398553
+    },
+    {
+      "type": "Powertrain",
+      "typeLabel": "Powertrain",
+      "label": "LH turn acceleration",
+      "notes": "",
+      "startIdx": 75,
+      "endIdx": 81,
+      "startLat": 42.498135,
+      "startLng": -83.398183,
+      "endLat": 42.498066,
+      "endLng": -83.401209
+    },
+    {
+      "type": "Ride Comfort",
+      "typeLabel": "Ride Comfort",
+      "label": "Road impact strips",
+      "notes": "",
+      "startIdx": 122,
+      "endIdx": 155,
+      "startLat": 42.497927,
+      "startLng": -83.417247,
+      "endLat": 42.512091,
+      "endLng": -83.417995
+    },
+    {
+      "type": "Powertrain",
+      "typeLabel": "Powertrain",
+      "label": "HWY Merge Scene",
+      "notes": "",
+      "startIdx": 247,
+      "endIdx": 253,
+      "startLat": 42.526943,
+      "startLng": -83.445018,
+      "endLat": 42.528861,
+      "endLng": -83.445304
+    },
+    {
+      "type": "Powertrain",
+      "typeLabel": "Powertrain",
+      "label": "HWY Merge Scene",
+      "notes": "",
+      "startIdx": 283,
+      "endIdx": 289,
+      "startLat": 42.543146,
+      "startLng": -83.45186,
+      "endLat": 42.541635,
+      "endLng": -83.452037
+    },
+    {
+      "type": "NVH",
+      "typeLabel": "NVH",
+      "label": "HWY Road and Wind Noise",
+      "notes": "",
+      "startIdx": 294,
+      "endIdx": 321,
+      "startLat": 42.541016,
+      "startLng": -83.452022,
+      "endLat": 42.522326,
+      "endLng": -83.446057
+    }
+  ]
+}
