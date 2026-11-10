@@ -1,18 +1,6 @@
 {
   "routes": [
     {
-      "file": "adam-commute.json",
-      "name": "Adam Commute",
-      "start": "Columbia Road, Berkley, Michigan 48072",
-      "end": "Sunrise Drive, Farmington Hills, Michigan 48331",
-      "distanceMeters": 26786.254,
-      "durationSeconds": 1544.116,
-      "waypointCount": 3,
-      "sceneCount": 0,
-      "vehicles": [],
-      "date": "2026-11-10T15:07:03.853Z"
-    },
-    {
       "file": "dealer-training-route-2.json",
       "name": "Dealer Training Route 2",
       "start": "Genesee Avenue, San Diego, California 92121",
